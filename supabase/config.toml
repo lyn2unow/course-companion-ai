@@ -1,1 +1,4 @@
 project_id = "bajnlawcjididzylglog"
+
+[functions.generate-content]
+verify_jwt = false
