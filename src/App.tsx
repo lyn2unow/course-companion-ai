@@ -13,6 +13,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import CourseSetup from "./pages/CourseSetup";
 import CourseDetail from "./pages/CourseDetail";
+import ModuleDetail from "./pages/ModuleDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <CourseDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/courses/:courseId/modules/:moduleId"
+              element={
+                <ProtectedRoute>
+                  <ModuleDetail />
                 </ProtectedRoute>
               }
             />
