@@ -1,98 +1,98 @@
 
 
-# Phase 2: Design System Implementation
+# Phase 3: Initial Course Setup & Customization
 
 ## Overview
-Update the color system, typography, and component styling to match the project spec: dark navy background (`hsl(215, 39%, 19%)`) for landing/auth pages, light background for the dashboard, gold accent (`hsl(45, 100%, 52%)`), and Inter font throughout.
+Build a multi-step course creation wizard as the primary user flow. After signing in, users land on the dashboard where they can click "Create New Course" to enter a guided setup process.
 
-## Step 1: Add Google Fonts to index.html
-- Import Inter (400, 500, 600, 700) via Google Fonts link tag
-- Update the page title and meta tags from "Lovable App" to the product name (we'll use "CourseForge" as a working title)
+## Step 1: Create the Course Setup Page & Route
+- Add `/courses/new` route in `App.tsx` (protected)
+- Create `src/pages/CourseSetup.tsx` as a multi-step wizard container
+- Track current step in local state (steps 1-4)
+- Show a progress indicator at the top
 
-## Step 2: Update CSS Variables in src/index.css
-Remap the `:root` (light theme for dashboard) CSS variables:
-- `--background`: white (0 0% 100%) -- stays the same for dashboard
-- `--foreground`: dark text (0 0% 20%) -- spec text color #333
-- `--primary`: dark navy (215 39% 19%) -- #1e2d43
-- `--primary-foreground`: white (0 0% 100%)
-- `--accent`: gold (45 100% 52%) -- #ffc20a
-- `--accent-foreground`: dark navy (215 39% 19%)
-- Update `--ring` to gold for focus states
-- Add a custom `--navy` variable for direct use on landing/auth backgrounds
-- Update sidebar variables to use navy tones
+## Step 2: Build Wizard Step Components
+Create individual step components in `src/components/course-setup/`:
 
-Also add a `.dark` override for potential future dark mode.
+**Step 1 - Basic Info** (`CourseBasicInfo.tsx`)
+- Course Name (required, text input)
+- Description (textarea)
+- Institution (text input)
+- Semester (text input, e.g. "Spring 2026")
+- Form validation with zod
 
-## Step 3: Update Tailwind Config
-- Add `fontFamily` config with `inter: ['Inter', 'sans-serif']` and `mono: ['JetBrains Mono', 'monospace']`
-- Add custom color `navy` mapped to the dark navy HSL value for direct usage (e.g., `bg-navy`)
-- Add custom color `gold` mapped to the accent for convenience
+**Step 2 - Teaching Philosophy** (`CoursePhilosophy.tsx`)
+- Teaching Philosophy (textarea, optional)
+- Source Material Hierarchy (sortable list of items like "Statutes", "Exam Handbook", "Textbook")
+- Add/remove/reorder capability using simple up/down buttons
 
-## Step 4: Update Button Component Variants
-Customize `src/components/ui/button.tsx`:
-- `default` variant: gold background (`bg-accent`) with dark navy text, hover darkens slightly
-- `secondary` variant: navy background with white text
-- `outline` variant: navy border with navy text, gold hover
-- `ghost` and `link` variants: adjust to use navy/gold appropriately
-- Ensure accessible focus rings use the gold accent
+**Step 3 - File Upload** (`CourseMaterials.tsx`)
+- Upload syllabus, lecture notes, textbook references
+- File type selection (syllabus, lecture_notes, textbook, other)
+- Show upload progress and file list
+- Uses Supabase Storage (requires creating a `course-materials` bucket)
+- Files are optional at setup -- users can add later
 
-## Step 5: Restyle Auth Pages (Login, Signup, ForgotPassword, ResetPassword)
-- Change background from `bg-primary` to `bg-navy` (the dark navy)
-- Update card styling for proper contrast on dark backgrounds
-- Style buttons with the gold accent variant
-- Add the product name/logo at the top of each auth form
+**Step 4 - Review & Confirm** (`CourseReview.tsx`)
+- Summary of all entered information
+- List of uploaded files
+- "Create Course" button to finalize
 
-## Step 6: Update Dashboard Layout
-- Keep the light `bg-background` for the main dashboard area
-- Update the header to use navy background with white text and gold accent for actions
-- Prepare the layout structure for a future sidebar (Phase 3)
+## Step 3: Create Storage Bucket
+- Create a `course-materials` storage bucket via migration
+- Add RLS policy so users can only access their own files (path pattern: `{user_id}/{course_id}/...`)
 
-## Step 7: Create Shared Layout Components
-- **AppHeader**: Reusable header component with logo, nav, and user menu
-- **PageContainer**: Wrapper with consistent max-width and padding (following the 4px/8px grid)
-- **AuthLayout**: Shared layout for login/signup/reset pages (dark navy background, centered card)
+## Step 4: Implement Data Persistence
+- On final confirmation, insert into `courses` table
+- Upload files to storage and insert metadata into `course_materials` table
+- Auto-generate initial modules from course outline (placeholder -- actual AI generation is a later phase)
+- Show success toast and redirect to dashboard
+
+## Step 5: Update Dashboard
+- Show a list of user's courses (fetched from `courses` table)
+- Each course shown as a card with name, institution, semester, module count
+- "Create New Course" button links to `/courses/new`
+- Empty state with clear CTA when no courses exist
+
+## Step 6: Add Course Detail Route
+- Add `/courses/:id` route (protected) as a placeholder page
+- Show course name, description, and module list
+- This becomes the hub for Phase 4+ features (content generation, quizzes, etc.)
 
 ## Technical Details
 
-### CSS Variable Changes (src/index.css)
-```
---primary: 215 39% 19%        (navy)
---primary-foreground: 0 0% 100%
---accent: 45 100% 52%         (gold)  
---accent-foreground: 215 39% 19%
---foreground: 0 0% 20%        (#333)
---ring: 45 100% 52%           (gold focus)
---muted-foreground: 0 0% 40%  (softer gray)
+### New Files
+- `src/pages/CourseSetup.tsx` -- wizard container with step state
+- `src/components/course-setup/CourseBasicInfo.tsx` -- step 1 form
+- `src/components/course-setup/CoursePhilosophy.tsx` -- step 2 form
+- `src/components/course-setup/CourseMaterials.tsx` -- step 3 file upload
+- `src/components/course-setup/CourseReview.tsx` -- step 4 summary
+- `src/components/course-setup/StepIndicator.tsx` -- progress bar
+- `src/pages/CourseDetail.tsx` -- course detail placeholder
+
+### Modified Files
+- `src/App.tsx` -- add `/courses/new` and `/courses/:id` routes
+- `src/pages/Dashboard.tsx` -- course list with cards and empty state
+
+### Database Changes
+- Create `course-materials` storage bucket with owner-based RLS
+
+### Validation Schema (zod)
+```text
+courseName: string, required, max 200 chars
+description: string, optional, max 2000 chars
+institution: string, optional, max 200 chars
+semester: string, optional, max 100 chars
+teachingPhilosophy: string, optional, max 5000 chars
+sourceHierarchy: array of strings
 ```
 
-### Tailwind Config Additions
-```
-fontFamily: {
-  sans: ['Inter', 'system-ui', 'sans-serif'],
-  mono: ['JetBrains Mono', 'monospace'],
-}
-colors: {
-  navy: 'hsl(215, 39%, 19%)',
-  gold: 'hsl(45, 100%, 52%)',
-}
-```
-
-### Files to Create
-- `src/components/layout/AuthLayout.tsx` -- dark navy wrapper with centered card
-- `src/components/layout/AppHeader.tsx` -- dashboard header with logo + nav
-- `src/components/layout/PageContainer.tsx` -- max-width + padding wrapper
-
-### Files to Modify
-- `index.html` -- fonts + title
-- `src/index.css` -- CSS variables
-- `tailwind.config.ts` -- fonts + custom colors
-- `src/components/ui/button.tsx` -- variant colors
-- `src/pages/Login.tsx` -- use AuthLayout
-- `src/pages/Signup.tsx` -- use AuthLayout
-- `src/pages/ForgotPassword.tsx` -- use AuthLayout
-- `src/pages/ResetPassword.tsx` -- use AuthLayout
-- `src/pages/Dashboard.tsx` -- use AppHeader
-- `src/pages/Index.tsx` -- placeholder with dark navy hero
+### State Management
+- Wizard state held in `CourseSetup.tsx` via `useState`
+- Each step receives data + setter as props
+- No server save until final confirmation (keeps it simple)
+- React Query for fetching courses on dashboard
 
 ## Outcome
-After this phase, all pages share a consistent visual identity: dark navy landing/auth sections with gold CTAs, clean light dashboard, Inter typography, and reusable layout components ready for the course setup wizard in Phase 3.
+Users can create courses through a guided 4-step wizard, upload materials, and see their courses on the dashboard. This establishes the core data foundation for all subsequent AI-powered features.
+
