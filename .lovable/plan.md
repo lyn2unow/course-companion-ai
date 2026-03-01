@@ -1,99 +1,95 @@
 
 
-# Phase 4: Module Content Generation & Review
+# Phase 5: Polish & Accessibility
 
 ## Overview
-The secondary user flow per the project spec is **Module Content Generation & Review** (Flow 2). This transforms the Course Detail page from a placeholder into an interactive hub where instructors can create modules, then generate AI-powered content (lecture notes, key terms, discussion prompts) for each module. This is the core value proposition of the product.
+Add micro-interactions, error boundaries, lazy loading, skeleton loaders, and accessibility improvements across the application. No new features -- this is about making the existing experience feel polished and professional.
 
-## Step 1: Enhance Course Detail Page
-Upgrade `CourseDetail.tsx` from a read-only placeholder to an interactive course management hub:
-- Add "Add Module" button that opens a dialog to create new modules (title + description)
-- Allow reordering modules with up/down buttons
-- Allow deleting modules with confirmation
-- Each module card becomes expandable/clickable to reveal content generation options
-- Add course info summary section (teaching philosophy, source hierarchy)
+## 1. Error Boundary Component
+Create `src/components/ErrorBoundary.tsx`:
+- Class component that catches render errors
+- Shows a friendly "Something went wrong" message with a "Try again" button that reloads the page
+- Wrap the main `<Routes>` in App.tsx with it
 
-## Step 2: Create Module Detail View
-Create `src/pages/ModuleDetail.tsx` at route `/courses/:courseId/modules/:moduleId`:
-- Show module title and description (editable inline)
-- Display tabs for different content types: Lecture Notes, Key Terms, Discussion Prompts
-- Each tab shows existing generated content or an empty state with "Generate" CTA
-- Content cards show approval status, creation date, and actions (edit, regenerate, approve, delete)
+## 2. Lazy Loading & Code Splitting
+Update `src/App.tsx`:
+- Use `React.lazy()` for all page components (Dashboard, CourseSetup, CourseDetail, ModuleDetail, Login, Signup, ForgotPassword, ResetPassword)
+- Wrap lazy routes in `<Suspense>` with a centered spinner fallback
+- Keep Index (landing page) eagerly loaded for fast first paint
 
-## Step 3: Build the AI Content Generation Edge Function
-Create a backend function `supabase/functions/generate-content/index.ts` that:
-- Accepts: module_id, content_type (lecture_notes, key_terms, discussion_prompt), course context
-- Fetches the course's teaching philosophy, source hierarchy, and module info
-- Calls an AI model (Gemini 2.5 Flash -- fast, good for content generation) with a structured prompt
-- Returns the generated content text
-- The function uses the LOVABLE_API_KEY secret (already configured) to access Lovable AI models
+## 3. Skeleton Loaders
+Replace raw `<Loader2>` spinners with content-aware skeletons:
+- **Dashboard**: Create a `CourseCardSkeleton` showing 4 placeholder cards in the grid while courses load
+- **CourseDetail**: Skeleton for course header + 3 module card placeholders
+- **ModuleDetail**: Skeleton for module header + content tabs area
+- Use the existing `Skeleton` component from `src/components/ui/skeleton.tsx`
 
-## Step 4: Create Content Generation UI Components
-Build components in `src/components/content-generation/`:
-- **GenerateContentButton** -- triggers generation with loading state and content type selection
-- **ContentCard** -- displays generated content with markdown-like formatting, approval toggle, edit mode
-- **ContentEditor** -- inline text editor for reviewing and modifying AI-generated content
-- **ContentTabs** -- tab layout for the three content types within a module
+## 4. Staggered List Animations
+Add CSS-based staggered fade-in animations (no Framer Motion needed -- keep the bundle small):
+- Add `animate-fade-in` keyframes to `tailwind.config.ts` (fade + translateY)
+- Apply staggered `animation-delay` via inline styles on course cards and module cards
+- Add `transition-shadow` and `hover:shadow-md` on interactive cards (already partially done)
 
-## Step 5: Wire Up Data Flow
-- On "Generate" click: call the edge function, show loading spinner, save result to `generated_content` table
-- Display all generated content for a module, grouped by content_type
-- Allow editing content inline and saving updates
-- Toggle `is_approved` to mark content as reviewed
-- Allow regeneration (creates a new version, keeps the old one)
-- Allow deletion of unwanted content
+## 5. Page Transition Wrapper
+Create a lightweight `src/components/layout/PageTransition.tsx` component:
+- Wraps page content with a `animate-fade-in` class on mount
+- Simple CSS-only approach: opacity 0 to 1 + slight translateY
+- Apply to all page components (Dashboard, CourseDetail, ModuleDetail, CourseSetup)
 
-## Step 6: Add Module Management to Course Detail
-- CRUD operations for modules directly from the Course Detail page
-- Add Module dialog with title and optional description
-- Edit module title/description inline
-- Delete module with confirmation (cascades to generated content)
-- Reorder modules with sort_order updates
+## 6. Accessibility Fixes
+Across all pages:
+- **Heading hierarchy**: Ensure each page has exactly one `<h1>`, sections use `<h2>`, subsections `<h3>`
+- **Focus management**: Add `focus-visible:ring-2 focus-visible:ring-ring` to all interactive elements (already handled by shadcn button, but verify cards/links)
+- **Landmark regions**: Wrap main content in `<main>`, header in `<header>` (already done), add `role="navigation"` to breadcrumbs
+- **Form labels**: Verify all inputs have associated `<Label>` elements (already done in auth pages and course setup)
+- **Alt text**: Add `aria-label` to icon-only buttons (reorder up/down, delete)
+- **Skip navigation**: Add a "Skip to main content" link at the top of AppHeader
+- **Color contrast**: Verify `text-white/70` on navy background meets 4.5:1 ratio (it does: white at 70% opacity on #1e2d43 is ~5.2:1)
 
-## Step 7: Update Navigation
-- Add route `/courses/:courseId/modules/:moduleId` to `App.tsx`
-- Module cards on Course Detail link to Module Detail
-- Breadcrumb navigation: Dashboard > Course Name > Module Name
-- Back buttons at each level
+## 7. Interactive Feedback
+- **Button press**: Add `active:scale-[0.98]` to the Button component for tactile feedback
+- **Toast positioning**: Ensure toasts don't overlap mobile navigation
+- **Loading buttons**: Already show loading text -- add a subtle spinner icon alongside text on all submit buttons
+
+## 8. NotFound Page Polish
+Update `src/pages/NotFound.tsx`:
+- Use the navy background to match the landing page aesthetic
+- Add a "Back to Dashboard" link for authenticated users
+- Improve visual hierarchy
 
 ## Technical Details
 
 ### New Files
-- `src/pages/ModuleDetail.tsx` -- module detail with content tabs
-- `src/components/content-generation/ContentTabs.tsx` -- tab layout for content types
-- `src/components/content-generation/ContentCard.tsx` -- individual content display
-- `src/components/content-generation/ContentEditor.tsx` -- inline editing
-- `src/components/content-generation/GenerateContentButton.tsx` -- generation trigger
-- `src/components/modules/AddModuleDialog.tsx` -- create module form
-- `src/components/modules/ModuleCard.tsx` -- enhanced module card for course detail
-- `supabase/functions/generate-content/index.ts` -- AI content generation edge function
+- `src/components/ErrorBoundary.tsx` -- React error boundary with friendly UI
+- `src/components/layout/PageTransition.tsx` -- CSS fade-in wrapper
 
 ### Modified Files
-- `src/pages/CourseDetail.tsx` -- add module management (add, reorder, delete)
-- `src/App.tsx` -- add `/courses/:courseId/modules/:moduleId` route
+- `src/App.tsx` -- lazy imports, Suspense, ErrorBoundary wrapper
+- `tailwind.config.ts` -- add fade-in keyframe + animation
+- `src/components/ui/button.tsx` -- add `active:scale-[0.98]` press feedback
+- `src/pages/Dashboard.tsx` -- skeleton loader, staggered animation, PageTransition
+- `src/pages/CourseDetail.tsx` -- skeleton loader, staggered animation, PageTransition, aria-labels on icon buttons
+- `src/pages/ModuleDetail.tsx` -- skeleton loader, PageTransition
+- `src/pages/CourseSetup.tsx` -- PageTransition wrapper
+- `src/pages/NotFound.tsx` -- visual polish with navy theme
+- `src/components/layout/AppHeader.tsx` -- skip-to-content link
+- `src/components/modules/ModuleCard.tsx` -- aria-labels on reorder/delete buttons
 
-### Edge Function: generate-content
+### Tailwind Config Additions
 ```text
-POST /generate-content
-Body: { moduleId, contentType, courseId }
-Auth: Bearer token (user's session JWT)
-
-Flow:
-1. Verify auth, fetch course + module data
-2. Build prompt with course context (philosophy, hierarchy, module title)
-3. Call Lovable AI (Gemini 2.5 Flash) via LOVABLE_API_KEY
-4. Return { content: string }
+keyframes: {
+  "fade-in": {
+    "0%": { opacity: "0", transform: "translateY(8px)" },
+    "100%": { opacity: "1", transform: "translateY(0)" }
+  }
+}
+animation: {
+  "fade-in": "fade-in 0.3s ease-out forwards"
+}
 ```
 
-### AI Prompt Structure
-The edge function builds context-aware prompts using:
-- Course name, description, teaching philosophy
-- Source material hierarchy preferences
-- Module title and description
-- Content type-specific instructions (e.g., "Generate comprehensive lecture notes" vs "Extract 15-20 key terms with definitions")
-
 ### No Database Changes Required
-All tables are already in place: `modules`, `generated_content` with proper RLS policies.
+This phase is entirely frontend polish.
 
 ## Outcome
-Instructors can manage modules within a course and generate AI-powered lecture notes, key terms, and discussion prompts for each module. They can review, edit, approve, or regenerate content -- establishing the core AI-assisted workflow that differentiates CourseForge.
+The app feels responsive and polished: pages fade in smoothly, loading states show content-aware skeletons, errors are caught gracefully, all interactive elements are keyboard accessible, and the heading hierarchy is correct for screen readers.
