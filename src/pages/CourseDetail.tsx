@@ -1,33 +1,38 @@
 import { useParams, Link } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import AppHeader from "@/components/layout/AppHeader";
 import PageContainer from "@/components/layout/PageContainer";
+import PageTransition from "@/components/layout/PageTransition";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import ModuleCard from "@/components/modules/ModuleCard";
 import AddModuleDialog from "@/components/modules/AddModuleDialog";
-import { ArrowLeft, Loader2, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
+  Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useQueryClient } from "@tanstack/react-query";
+
+const CourseDetailSkeleton = () => (
+  <div>
+    <Skeleton className="h-8 w-1/2 mb-2" />
+    <Skeleton className="h-4 w-3/4 mb-6" />
+    <Skeleton className="h-5 w-24 mb-4" />
+    <div className="space-y-3">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <Skeleton key={i} className="h-16 w-full rounded-lg" />
+      ))}
+    </div>
+  </div>
+);
 
 const CourseDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -101,10 +106,8 @@ const CourseDetail = () => {
     const idx = modules.findIndex((m) => m.id === moduleId);
     const swapIdx = direction === "up" ? idx - 1 : idx + 1;
     if (swapIdx < 0 || swapIdx >= modules.length) return;
-
     const a = modules[idx];
     const b = modules[swapIdx];
-
     await Promise.all([
       supabase.from("modules").update({ sort_order: b.sort_order }).eq("id", a.id),
       supabase.from("modules").update({ sort_order: a.sort_order }).eq("id", b.id),
@@ -120,81 +123,84 @@ const CourseDetail = () => {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <PageContainer>
-        <Breadcrumb className="mb-4">
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild><Link to="/dashboard">Dashboard</Link></BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{course?.name ?? "Course"}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+        <PageTransition>
+          <main id="main-content">
+            <Breadcrumb className="mb-4" aria-label="Breadcrumb">
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild><Link to="/dashboard">Dashboard</Link></BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{course?.name ?? "Course"}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
 
-        {isLoading ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : course ? (
-          <>
-            <h1 className="text-2xl font-bold">{course.name}</h1>
-            {course.description && (
-              <p className="text-muted-foreground mt-1">{course.description}</p>
-            )}
-            <div className="flex gap-4 text-sm text-muted-foreground mt-2">
-              {course.institution && <span>{course.institution}</span>}
-              {course.semester && <span>· {course.semester}</span>}
-            </div>
+            {isLoading ? (
+              <CourseDetailSkeleton />
+            ) : course ? (
+              <>
+                <h1 className="text-2xl font-bold">{course.name}</h1>
+                {course.description && (
+                  <p className="text-muted-foreground mt-1">{course.description}</p>
+                )}
+                <div className="flex gap-4 text-sm text-muted-foreground mt-2">
+                  {course.institution && <span>{course.institution}</span>}
+                  {course.semester && <span>· {course.semester}</span>}
+                </div>
 
-            {(course.teaching_philosophy || sourceHierarchy.length > 0) && (
-              <div className="mt-6 p-4 rounded-lg border bg-muted/30 space-y-2">
-                {course.teaching_philosophy && (
-                  <div>
-                    <span className="text-xs font-semibold uppercase text-muted-foreground">Teaching Philosophy</span>
-                    <p className="text-sm mt-1">{course.teaching_philosophy}</p>
+                {(course.teaching_philosophy || sourceHierarchy.length > 0) && (
+                  <div className="mt-6 p-4 rounded-lg border bg-muted/30 space-y-2">
+                    {course.teaching_philosophy && (
+                      <div>
+                        <span className="text-xs font-semibold uppercase text-muted-foreground">Teaching Philosophy</span>
+                        <p className="text-sm mt-1">{course.teaching_philosophy}</p>
+                      </div>
+                    )}
+                    {sourceHierarchy.length > 0 && (
+                      <div>
+                        <span className="text-xs font-semibold uppercase text-muted-foreground">Source Hierarchy</span>
+                        <p className="text-sm mt-1">{sourceHierarchy.join(" → ")}</p>
+                      </div>
+                    )}
                   </div>
                 )}
-                {sourceHierarchy.length > 0 && (
-                  <div>
-                    <span className="text-xs font-semibold uppercase text-muted-foreground">Source Hierarchy</span>
-                    <p className="text-sm mt-1">{sourceHierarchy.join(" → ")}</p>
+
+                <div className="flex items-center justify-between mt-8 mb-4">
+                  <h2 className="text-lg font-semibold">Modules</h2>
+                  <Button size="sm" onClick={() => setShowAddModule(true)}>
+                    <Plus className="h-4 w-4 mr-1" /> Add Module
+                  </Button>
+                </div>
+
+                {modules.length > 0 ? (
+                  <div className="space-y-3">
+                    {modules.map((m, idx) => (
+                      <div key={m.id} className="opacity-0 animate-fade-in" style={{ animationDelay: `${idx * 75}ms` }}>
+                        <ModuleCard
+                          module={m}
+                          courseId={id!}
+                          isFirst={idx === 0}
+                          isLast={idx === modules.length - 1}
+                          onMoveUp={() => handleReorder(m.id, "up")}
+                          onMoveDown={() => handleReorder(m.id, "down")}
+                          onDelete={() => setDeleteModuleId(m.id)}
+                        />
+                      </div>
+                    ))}
                   </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No modules yet. Add your first module to start generating content.
+                  </p>
                 )}
-              </div>
-            )}
-
-            <div className="flex items-center justify-between mt-8 mb-4">
-              <h2 className="text-lg font-semibold">Modules</h2>
-              <Button size="sm" onClick={() => setShowAddModule(true)}>
-                <Plus className="h-4 w-4 mr-1" /> Add Module
-              </Button>
-            </div>
-
-            {modules.length > 0 ? (
-              <div className="space-y-3">
-                {modules.map((m, idx) => (
-                  <ModuleCard
-                    key={m.id}
-                    module={m}
-                    courseId={id!}
-                    isFirst={idx === 0}
-                    isLast={idx === modules.length - 1}
-                    onMoveUp={() => handleReorder(m.id, "up")}
-                    onMoveDown={() => handleReorder(m.id, "down")}
-                    onDelete={() => setDeleteModuleId(m.id)}
-                  />
-                ))}
-              </div>
+              </>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                No modules yet. Add your first module to start generating content.
-              </p>
+              <p className="text-muted-foreground">Course not found.</p>
             )}
-          </>
-        ) : (
-          <p className="text-muted-foreground">Course not found.</p>
-        )}
+          </main>
+        </PageTransition>
 
         <AddModuleDialog
           open={showAddModule}

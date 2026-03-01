@@ -1,22 +1,26 @@
 import { useParams, Link } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import AppHeader from "@/components/layout/AppHeader";
 import PageContainer from "@/components/layout/PageContainer";
-import { Button } from "@/components/ui/button";
+import PageTransition from "@/components/layout/PageTransition";
 import ContentTabs from "@/components/content-generation/ContentTabs";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
+  Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+
+const ModuleDetailSkeleton = () => (
+  <div>
+    <Skeleton className="h-8 w-1/2 mb-2" />
+    <Skeleton className="h-4 w-3/4 mb-6" />
+    <Skeleton className="h-10 w-full mb-4" />
+    <Skeleton className="h-40 w-full rounded-lg" />
+  </div>
+);
 
 const ModuleDetail = () => {
   const { courseId, moduleId } = useParams<{ courseId: string; moduleId: string }>();
@@ -68,8 +72,6 @@ const ModuleDetail = () => {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
-      // Save to DB
       const { error: insertError } = await supabase.from("generated_content").insert({
         module_id: moduleId,
         content_type: contentType,
@@ -77,7 +79,6 @@ const ModuleDetail = () => {
         user_id: user.id,
       });
       if (insertError) throw insertError;
-
       queryClient.invalidateQueries({ queryKey: ["generated_content", moduleId] });
       toast({ title: "Content generated successfully" });
     } catch (e: any) {
@@ -120,46 +121,48 @@ const ModuleDetail = () => {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <PageContainer>
-        <Breadcrumb className="mb-4">
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild><Link to="/dashboard">Dashboard</Link></BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild><Link to={`/courses/${courseId}`}>{course?.name ?? "Course"}</Link></BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{module?.title ?? "Module"}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+        <PageTransition>
+          <main id="main-content">
+            <Breadcrumb className="mb-4" aria-label="Breadcrumb">
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild><Link to="/dashboard">Dashboard</Link></BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild><Link to={`/courses/${courseId}`}>{course?.name ?? "Course"}</Link></BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{module?.title ?? "Module"}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
 
-        {moduleLoading ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : module ? (
-          <>
-            <h1 className="text-2xl font-bold">{module.title}</h1>
-            {module.description && (
-              <p className="text-muted-foreground mt-1 mb-6">{module.description}</p>
+            {moduleLoading ? (
+              <ModuleDetailSkeleton />
+            ) : module ? (
+              <>
+                <h1 className="text-2xl font-bold">{module.title}</h1>
+                {module.description && (
+                  <p className="text-muted-foreground mt-1 mb-6">{module.description}</p>
+                )}
+                {!module.description && <div className="mb-6" />}
+
+                <ContentTabs
+                  contents={contents}
+                  onGenerate={handleGenerate}
+                  onUpdate={handleUpdate}
+                  onToggleApproval={handleToggleApproval}
+                  onDelete={handleDelete}
+                  generatingType={generatingType}
+                />
+              </>
+            ) : (
+              <p className="text-muted-foreground">Module not found.</p>
             )}
-            {!module.description && <div className="mb-6" />}
-
-            <ContentTabs
-              contents={contents}
-              onGenerate={handleGenerate}
-              onUpdate={handleUpdate}
-              onToggleApproval={handleToggleApproval}
-              onDelete={handleDelete}
-              generatingType={generatingType}
-            />
-          </>
-        ) : (
-          <p className="text-muted-foreground">Module not found.</p>
-        )}
+          </main>
+        </PageTransition>
       </PageContainer>
     </div>
   );
