@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Pencil, Trash2, RefreshCw } from "lucide-react";
 import ContentEditor from "./ContentEditor";
+import ExportMenu from "./ExportMenu";
 import { format } from "date-fns";
 
 interface ContentCardProps {
@@ -47,9 +48,10 @@ const ContentCard = ({ content: item, onUpdate, onToggleApproval, onDelete, onRe
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditing(true)}>
             <Pencil className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRegenerate}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRegenerate} aria-label="Regenerate">
             <RefreshCw className="h-4 w-4" />
           </Button>
+          <ExportMenu content={item.content} contentType={item.content_type} />
           <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onDelete(item.id)}>
             <Trash2 className="h-4 w-4" />
           </Button>

@@ -7,9 +7,11 @@ import PageContainer from "@/components/layout/PageContainer";
 import PageTransition from "@/components/layout/PageTransition";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ModuleCard from "@/components/modules/ModuleCard";
 import AddModuleDialog from "@/components/modules/AddModuleDialog";
-import { Plus } from "lucide-react";
+import MaterialsManager from "@/components/course-materials/MaterialsManager";
+import { Plus, BookOpen, FolderOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import {
@@ -167,34 +169,57 @@ const CourseDetail = () => {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between mt-8 mb-4">
-                  <h2 className="text-lg font-semibold">Modules</h2>
-                  <Button size="sm" onClick={() => setShowAddModule(true)}>
-                    <Plus className="h-4 w-4 mr-1" /> Add Module
-                  </Button>
-                </div>
+                <Tabs defaultValue="modules" className="mt-8">
+                  <TabsList className="grid w-full grid-cols-2 max-w-xs">
+                    <TabsTrigger value="modules" className="gap-2">
+                      <BookOpen className="h-4 w-4" /> Modules
+                    </TabsTrigger>
+                    <TabsTrigger value="materials" className="gap-2">
+                      <FolderOpen className="h-4 w-4" /> Materials
+                    </TabsTrigger>
+                  </TabsList>
 
-                {modules.length > 0 ? (
-                  <div className="space-y-3">
-                    {modules.map((m, idx) => (
-                      <div key={m.id} className="opacity-0 animate-fade-in" style={{ animationDelay: `${idx * 75}ms` }}>
-                        <ModuleCard
-                          module={m}
-                          courseId={id!}
-                          isFirst={idx === 0}
-                          isLast={idx === modules.length - 1}
-                          onMoveUp={() => handleReorder(m.id, "up")}
-                          onMoveDown={() => handleReorder(m.id, "down")}
-                          onDelete={() => setDeleteModuleId(m.id)}
-                        />
+                  <TabsContent value="modules">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-semibold">Modules</h2>
+                      <Button size="sm" onClick={() => setShowAddModule(true)}>
+                        <Plus className="h-4 w-4 mr-1" /> Add Module
+                      </Button>
+                    </div>
+
+                    {modules.length > 0 ? (
+                      <div className="space-y-3">
+                        {modules.map((m, idx) => (
+                          <div key={m.id} className="opacity-0 animate-fade-in" style={{ animationDelay: `${idx * 75}ms` }}>
+                            <ModuleCard
+                              module={m}
+                              courseId={id!}
+                              isFirst={idx === 0}
+                              isLast={idx === modules.length - 1}
+                              onMoveUp={() => handleReorder(m.id, "up")}
+                              onMoveDown={() => handleReorder(m.id, "down")}
+                              onDelete={() => setDeleteModuleId(m.id)}
+                            />
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    No modules yet. Add your first module to start generating content.
-                  </p>
-                )}
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        No modules yet. Add your first module to start generating content.
+                      </p>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="materials">
+                    <div className="mb-4">
+                      <h2 className="text-lg font-semibold">Course Materials</h2>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Upload source materials so the AI can generate content based on your actual course content.
+                      </p>
+                    </div>
+                    <MaterialsManager courseId={id!} />
+                  </TabsContent>
+                </Tabs>
               </>
             ) : (
               <p className="text-muted-foreground">Course not found.</p>

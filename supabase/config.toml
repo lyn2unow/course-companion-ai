@@ -2,3 +2,9 @@ project_id = "bajnlawcjididzylglog"
 
 [functions.generate-content]
 verify_jwt = false
+
+[functions.parse-content]
+verify_jwt = false
+
+[functions.export-content]
+verify_jwt = false
