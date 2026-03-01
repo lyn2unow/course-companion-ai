@@ -38,6 +38,26 @@ serve(async (req) => {
     const course = courseRes.data;
     const module = moduleRes.data;
 
+    // Fetch course materials with extracted text
+    const { data: materials } = await supabase
+      .from("course_materials")
+      .select("file_name, material_type, extracted_text")
+      .eq("course_id", courseId)
+      .not("extracted_text", "is", null);
+
+    // Build source materials context (limit to ~30k chars total)
+    let materialsContext = "";
+    if (materials && materials.length > 0) {
+      let totalChars = 0;
+      const maxChars = 30000;
+      for (const mat of materials) {
+        if (!mat.extracted_text || totalChars >= maxChars) break;
+        const chunk = mat.extracted_text.substring(0, maxChars - totalChars);
+        materialsContext += `\n\n--- Source: ${mat.file_name} (${mat.material_type}) ---\n${chunk}`;
+        totalChars += chunk.length;
+      }
+    }
+
     // Build context-aware prompt
     const sourceHierarchy = Array.isArray(course.source_hierarchy)
       ? (course.source_hierarchy as string[]).join(", ")
@@ -52,6 +72,7 @@ ${sourceHierarchy ? `Source Material Priority: ${sourceHierarchy}` : ""}
 
 Module: ${module.title}
 ${module.description ? `Module Description: ${module.description}` : ""}
+${materialsContext ? `\n\n=== SOURCE MATERIALS ===\nUse the following source materials to generate accurate, relevant content:${materialsContext}` : ""}
 `.trim();
 
     const contentPrompts: Record<string, string> = {

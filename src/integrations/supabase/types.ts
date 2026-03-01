@@ -62,6 +62,7 @@ export type Database = {
         Row: {
           course_id: string
           created_at: string
+          extracted_text: string | null
           file_name: string
           file_size: number | null
           file_type: string | null
@@ -73,6 +74,7 @@ export type Database = {
         Insert: {
           course_id: string
           created_at?: string
+          extracted_text?: string | null
           file_name: string
           file_size?: number | null
           file_type?: string | null
@@ -84,6 +86,7 @@ export type Database = {
         Update: {
           course_id?: string
           created_at?: string
+          extracted_text?: string | null
           file_name?: string
           file_size?: number | null
           file_type?: string | null
