@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import AppHeader from "@/components/layout/AppHeader";
 import PageContainer from "@/components/layout/PageContainer";
+import PageTransition from "@/components/layout/PageTransition";
 import StepIndicator from "@/components/course-setup/StepIndicator";
 import CourseBasicInfo, { type BasicInfoData } from "@/components/course-setup/CourseBasicInfo";
 import CoursePhilosophy, { type PhilosophyData } from "@/components/course-setup/CoursePhilosophy";
@@ -100,6 +101,8 @@ const CourseSetup = () => {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <PageContainer className="max-w-2xl">
+        <PageTransition>
+        <main id="main-content">
         <h1 className="text-2xl font-bold mb-2">Create New Course</h1>
         <p className="text-muted-foreground mb-8">Set up your course in a few quick steps.</p>
 
@@ -135,6 +138,8 @@ const CourseSetup = () => {
             isSubmitting={isSubmitting}
           />
         )}
+      </main>
+        </PageTransition>
       </PageContainer>
     </div>
   );
