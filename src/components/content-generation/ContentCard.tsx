@@ -4,10 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Pencil, Trash2, RefreshCw } from "lucide-react";
+import { Pencil, Trash2, RefreshCw, Copy, CheckCircle } from "lucide-react";
 import ContentEditor from "./ContentEditor";
 import ExportMenu from "./ExportMenu";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+
+const CONTENT_TYPE_LABELS: Record<string, string> = {
+  lecture_notes: "Lecture Notes",
+  key_terms: "Key Terms & Glossary",
+  discussion_prompt: "Discussion Prompts",
+  reading_guide: "Reading Guide",
+};
 
 interface ContentCardProps {
   content: {
@@ -26,33 +34,53 @@ interface ContentCardProps {
 
 const ContentCard = ({ content: item, onUpdate, onToggleApproval, onDelete, onRegenerate, isUpdating }: ContentCardProps) => {
   const [editing, setEditing] = useState(false);
+  const { toast } = useToast();
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(item.content);
+    toast({ title: "Copied to clipboard" });
+  };
+
+  const typeLabel = CONTENT_TYPE_LABELS[item.content_type] ?? item.content_type;
 
   return (
     <Card className={item.is_approved ? "border-accent/50" : ""}>
       <CardHeader className="py-3 px-4 flex-row items-center justify-between space-y-0">
-        <div className="flex items-center gap-2">
-          <CardTitle className="text-sm font-medium">
+        <div className="flex items-center gap-2 flex-wrap">
+          <CardTitle className="text-sm font-medium">{typeLabel}</CardTitle>
+          <span className="text-xs text-muted-foreground">
             {format(new Date(item.created_at), "MMM d, yyyy h:mm a")}
-          </CardTitle>
-          {item.is_approved && <Badge variant="secondary" className="text-xs">Approved</Badge>}
+          </span>
+          {item.is_approved ? (
+            <Badge variant="secondary" className="text-xs gap-1">
+              <CheckCircle className="h-3 w-3" /> Reviewed
+            </Badge>
+          ) : (
+            <Badge className="text-xs bg-amber-500/15 text-amber-600 border-amber-500/30 hover:bg-amber-500/20">
+              AI Generated — Review Before Use
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <div className="flex items-center gap-2 mr-2">
-            <Label htmlFor={`approve-${item.id}`} className="text-xs text-muted-foreground">Approve</Label>
+            <Label htmlFor={`approve-${item.id}`} className="text-xs text-muted-foreground">Mark as Reviewed</Label>
             <Switch
               id={`approve-${item.id}`}
               checked={item.is_approved}
               onCheckedChange={(checked) => onToggleApproval(item.id, checked)}
             />
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditing(true)}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditing(true)} aria-label="Edit">
             <Pencil className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleCopy} aria-label="Copy to clipboard">
+            <Copy className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRegenerate} aria-label="Regenerate">
             <RefreshCw className="h-4 w-4" />
           </Button>
           <ExportMenu content={item.content} contentType={item.content_type} />
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onDelete(item.id)}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onDelete(item.id)} aria-label="Delete">
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>

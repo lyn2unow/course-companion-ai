@@ -85,6 +85,9 @@ ${courseContext}`,
       discussion_prompt: `Create 3-5 thought-provoking discussion prompts for the following module. Each prompt should encourage critical thinking, application of concepts, and peer engagement. Include guidance on expected response length and evaluation criteria. Format using markdown.
 
 ${courseContext}`,
+      reading_guide: `Create a comprehensive reading guide for the following module. Include: an overview of what students should focus on, key themes to look for, pre-reading questions to consider, and post-reading reflection prompts. Organize by sections or chapters if applicable. Format using markdown.
+
+${courseContext}`,
     };
 
     const prompt = contentPrompts[contentType];

@@ -187,7 +187,7 @@ const ModuleDetail = () => {
                   </div>
                 )}
 
-                <ContentTabs
+                <GenerateContentPanel
                   contents={contents}
                   onGenerate={handleGenerate}
                   onUpdate={handleUpdate}
