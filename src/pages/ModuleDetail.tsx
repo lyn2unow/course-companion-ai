@@ -9,6 +9,9 @@ import ContentTabs from "@/components/content-generation/ContentTabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { AlertCircle, FileText } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
@@ -32,17 +35,17 @@ const ModuleDetail = () => {
   const { data: course } = useQuery({
     queryKey: ["course", courseId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("courses").select("*").eq("id", courseId!).single();
+      const { data, error } = await supabase.from("courses").select("*").eq("id", courseId!).maybeSingle();
       if (error) throw error;
       return data;
     },
     enabled: !!courseId,
   });
 
-  const { data: module, isLoading: moduleLoading } = useQuery({
+  const { data: module, isLoading: moduleLoading, isError } = useQuery({
     queryKey: ["module", moduleId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("modules").select("*").eq("id", moduleId!).single();
+      const { data, error } = await supabase.from("modules").select("*").eq("id", moduleId!).maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -117,6 +120,8 @@ const ModuleDetail = () => {
     }
   };
 
+  const learningObjectives = module?.learning_objectives as string[] | null;
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -141,13 +146,46 @@ const ModuleDetail = () => {
 
             {moduleLoading ? (
               <ModuleDetailSkeleton />
-            ) : module ? (
+            ) : (!module || isError) ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="text-center space-y-4 max-w-sm">
+                  <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto" />
+                  <h2 className="text-xl font-semibold">Module Not Found</h2>
+                  <p className="text-sm text-muted-foreground">This module doesn't exist or you don't have access to it.</p>
+                  <Button asChild><Link to="/dashboard">Back to Dashboard</Link></Button>
+                </div>
+              </div>
+            ) : (
               <>
-                <h1 className="text-2xl font-bold">{module.title}</h1>
-                {module.description && (
-                  <p className="text-muted-foreground mt-1 mb-6">{module.description}</p>
+                <div className="mb-6 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-2xl font-bold">{module.title}</h1>
+                    {module.week_number != null && (
+                      <Badge variant="secondary">Week {module.week_number}</Badge>
+                    )}
+                  </div>
+                  {module.description && (
+                    <p className="text-muted-foreground">{module.description}</p>
+                  )}
+                  {learningObjectives && learningObjectives.length > 0 && (
+                    <div className="mt-3">
+                      <h3 className="text-sm font-medium mb-1">Learning Objectives</h3>
+                      <ul className="list-disc list-inside text-sm text-muted-foreground space-y-0.5">
+                        {learningObjectives.map((obj, i) => (
+                          <li key={i}>{obj}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {contents.length === 0 && (
+                  <div className="text-center py-12 mb-6 border border-dashed rounded-lg">
+                    <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                    <h3 className="text-sm font-medium">No content generated yet</h3>
+                    <p className="text-xs text-muted-foreground mt-1">Use the buttons below to generate content for this module.</p>
+                  </div>
                 )}
-                {!module.description && <div className="mb-6" />}
 
                 <ContentTabs
                   contents={contents}
@@ -158,8 +196,6 @@ const ModuleDetail = () => {
                   generatingType={generatingType}
                 />
               </>
-            ) : (
-              <p className="text-muted-foreground">Module not found.</p>
             )}
           </main>
         </PageTransition>

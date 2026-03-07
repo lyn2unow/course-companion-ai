@@ -279,33 +279,39 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          learning_objectives: Json | null
           sort_order: number
           status: string
           title: string
           updated_at: string
           user_id: string
+          week_number: number | null
         }
         Insert: {
           course_id: string
           created_at?: string
           description?: string | null
           id?: string
+          learning_objectives?: Json | null
           sort_order?: number
           status?: string
           title: string
           updated_at?: string
           user_id: string
+          week_number?: number | null
         }
         Update: {
           course_id?: string
           created_at?: string
           description?: string | null
           id?: string
+          learning_objectives?: Json | null
           sort_order?: number
           status?: string
           title?: string
           updated_at?: string
           user_id?: string
+          week_number?: number | null
         }
         Relationships: [
           {
