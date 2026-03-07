@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import AppHeader from "@/components/layout/AppHeader";
 import PageContainer from "@/components/layout/PageContainer";
 import PageTransition from "@/components/layout/PageTransition";
-import ContentTabs from "@/components/content-generation/ContentTabs";
+import GenerateContentPanel from "@/components/content-generation/GenerateContentPanel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
