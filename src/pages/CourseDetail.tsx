@@ -45,7 +45,7 @@ const CourseDetail = () => {
   const [deleteModuleId, setDeleteModuleId] = useState<string | null>(null);
   const [addingModule, setAddingModule] = useState(false);
 
-  const { data: course, isLoading } = useQuery({
+  const { data: course, isLoading, isError } = useQuery({
     queryKey: ["course", id],
     queryFn: async () => {
       const { data, error } = await supabase.from("courses").select("*").eq("id", id!).single();
