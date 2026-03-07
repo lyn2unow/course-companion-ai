@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ModuleCard from "@/components/modules/ModuleCard";
 import AddModuleDialog from "@/components/modules/AddModuleDialog";
 import MaterialsManager from "@/components/course-materials/MaterialsManager";
-import { Plus, BookOpen, FolderOpen } from "lucide-react";
+import { Plus, BookOpen, FolderOpen, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import {
