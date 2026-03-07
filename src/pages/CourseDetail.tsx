@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ModuleCard from "@/components/modules/ModuleCard";
 import AddModuleDialog from "@/components/modules/AddModuleDialog";
 import MaterialsManager from "@/components/course-materials/MaterialsManager";
-import { Plus, BookOpen, FolderOpen } from "lucide-react";
+import { Plus, BookOpen, FolderOpen, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import {
@@ -45,7 +45,7 @@ const CourseDetail = () => {
   const [deleteModuleId, setDeleteModuleId] = useState<string | null>(null);
   const [addingModule, setAddingModule] = useState(false);
 
-  const { data: course, isLoading } = useQuery({
+  const { data: course, isLoading, isError } = useQuery({
     queryKey: ["course", id],
     queryFn: async () => {
       const { data, error } = await supabase.from("courses").select("*").eq("id", id!).single();
@@ -221,9 +221,18 @@ const CourseDetail = () => {
                   </TabsContent>
                 </Tabs>
               </>
-            ) : (
-              <p className="text-muted-foreground">Course not found.</p>
-            )}
+            ) : (!course || isError) ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="text-center space-y-4 max-w-sm">
+                  <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto" />
+                  <h2 className="text-xl font-semibold">Course Not Found</h2>
+                  <p className="text-sm text-muted-foreground">This course doesn't exist or you don't have access to it.</p>
+                  <Button asChild>
+                    <Link to="/dashboard">Back to Dashboard</Link>
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </main>
         </PageTransition>
 
