@@ -221,9 +221,18 @@ const CourseDetail = () => {
                   </TabsContent>
                 </Tabs>
               </>
-            ) : (
-              <p className="text-muted-foreground">Course not found.</p>
-            )}
+            ) : (!course || isError) ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="text-center space-y-4 max-w-sm">
+                  <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto" />
+                  <h2 className="text-xl font-semibold">Course Not Found</h2>
+                  <p className="text-sm text-muted-foreground">This course doesn't exist or you don't have access to it.</p>
+                  <Button asChild>
+                    <Link to="/dashboard">Back to Dashboard</Link>
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </main>
         </PageTransition>
 
