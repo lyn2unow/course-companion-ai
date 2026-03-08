@@ -293,7 +293,7 @@ const CourseDetail = () => {
                         Upload source materials so the AI can generate content based on your actual course content.
                       </p>
                     </div>
-                    <MaterialsManager courseId={id!} />
+                    <MaterialsManager courseId={id!} sourceHierarchy={sourceHierarchy} />
                   </TabsContent>
 
                   <TabsContent value="quizzes">
