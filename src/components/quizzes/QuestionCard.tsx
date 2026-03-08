@@ -7,6 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Trash2 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 
+interface AnswerOption {
+  id: string;
+  text: string;
+  is_correct: boolean;
+}
+
 interface QuestionCardProps {
   question: {
     id: string;
@@ -31,9 +37,20 @@ const QuestionCard = ({
   const [text, setText] = useState(question.question_text);
   const [explanation, setExplanation] = useState(question.explanation ?? "");
 
-  const options = Array.isArray(question.options)
-    ? (question.options as string[])
-    : [];
+  // Support both new format (answer_options with id/text/is_correct) and legacy (string[])
+  const options: AnswerOption[] = (() => {
+    if (!Array.isArray(question.options)) return [];
+    const first = question.options[0];
+    if (first && typeof first === "object" && "id" in (first as any)) {
+      return question.options as unknown as AnswerOption[];
+    }
+    // Legacy string array
+    return (question.options as string[]).map((opt, i) => ({
+      id: String.fromCharCode(65 + i),
+      text: String(opt),
+      is_correct: String(opt).trim().toLowerCase() === String(question.correct_answer).trim().toLowerCase(),
+    }));
+  })();
 
   const typeLabel =
     question.question_type === "true_false" ? "True / False" : "Multiple Choice";
@@ -98,24 +115,20 @@ const QuestionCard = ({
         )}
 
         <div className="space-y-1">
-          {options.map((opt, i) => {
-            const isCorrect =
-              String(opt).trim().toLowerCase() ===
-              String(question.correct_answer).trim().toLowerCase();
-            return (
-              <div
-                key={i}
-                className={`text-sm px-3 py-1.5 rounded border ${
-                  isCorrect
-                    ? "bg-green-50 border-green-200 text-green-800 dark:bg-green-950 dark:border-green-800 dark:text-green-200"
-                    : "border-border"
-                }`}
-              >
-                {String(opt)}
-                {isCorrect && <span className="ml-2 text-xs font-medium">✓ Correct</span>}
-              </div>
-            );
-          })}
+          {options.map((opt) => (
+            <div
+              key={opt.id}
+              className={`text-sm px-3 py-1.5 rounded border ${
+                opt.is_correct
+                  ? "bg-green-50 border-green-200 text-green-800 dark:bg-green-950 dark:border-green-800 dark:text-green-200"
+                  : "border-border"
+              }`}
+            >
+              <span className="font-medium mr-2">{opt.id})</span>
+              {opt.text}
+              {opt.is_correct && <span className="ml-2 text-xs font-medium">✓ Correct</span>}
+            </div>
+          ))}
         </div>
 
         {editing ? (
