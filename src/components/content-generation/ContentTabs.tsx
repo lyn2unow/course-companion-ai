@@ -8,14 +8,19 @@ interface ContentItem {
   content: string;
   content_type: string;
   is_approved: boolean;
+  human_reviewed: boolean;
+  human_reviewed_at: string | null;
+  edited_content: string | null;
+  version: number;
   created_at: string;
 }
 
 interface ContentTabsProps {
   contents: ContentItem[];
   onGenerate: (contentType: string) => void;
-  onUpdate: (id: string, content: string) => void;
-  onToggleApproval: (id: string, approved: boolean) => void;
+  onAutoSave: (id: string, editedContent: string) => Promise<void>;
+  onToggleReviewed: (id: string, reviewed: boolean) => void;
+  onRegenerate: (id: string, contentType: string, currentVersion: number) => void;
   onDelete: (id: string) => void;
   generatingType: string | null;
 }
@@ -26,7 +31,7 @@ const TABS = [
   { value: "discussion_prompt", label: "Discussion Prompts", icon: MessageSquare },
 ];
 
-const ContentTabs = ({ contents, onGenerate, onUpdate, onToggleApproval, onDelete, generatingType }: ContentTabsProps) => {
+const ContentTabs = ({ contents, onGenerate, onAutoSave, onToggleReviewed, onRegenerate, onDelete, generatingType }: ContentTabsProps) => {
   return (
     <Tabs defaultValue="lecture_notes" className="w-full">
       <TabsList className="grid w-full grid-cols-3">
@@ -63,10 +68,10 @@ const ContentTabs = ({ contents, onGenerate, onUpdate, onToggleApproval, onDelet
                   <ContentCard
                     key={item.id}
                     content={item}
-                    onUpdate={onUpdate}
-                    onToggleApproval={onToggleApproval}
+                    onAutoSave={onAutoSave}
+                    onToggleReviewed={onToggleReviewed}
                     onDelete={onDelete}
-                    onRegenerate={() => onGenerate(value)}
+                    onRegenerate={() => onRegenerate(item.id, item.content_type, item.version)}
                   />
                 ))}
               </div>
