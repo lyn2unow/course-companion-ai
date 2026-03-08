@@ -7,8 +7,9 @@ import { useToast } from "@/hooks/use-toast";
 import AppHeader from "@/components/layout/AppHeader";
 import PageContainer from "@/components/layout/PageContainer";
 import PageTransition from "@/components/layout/PageTransition";
+import CourseCard from "@/components/dashboard/CourseCard";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,13 +22,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Plus, BookOpen, CheckCircle2, Circle, Sparkles, X,
-  MoreVertical, FolderOpen, Copy, Archive, Trash2, Eye, EyeOff, Loader2,
+  Plus, CheckCircle2, Circle, Sparkles, X, Eye, EyeOff, Loader2,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 
 const BANNER_DISMISSED_KEY = "courseforge_onboarding_dismissed";
 
