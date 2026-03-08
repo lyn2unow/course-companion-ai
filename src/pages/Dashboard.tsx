@@ -27,6 +27,7 @@ import {
   Plus, BookOpen, CheckCircle2, Circle, Sparkles, X,
   MoreVertical, FolderOpen, Copy, Archive, Trash2, Eye, EyeOff, Loader2,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 const BANNER_DISMISSED_KEY = "courseforge_onboarding_dismissed";
 
@@ -335,10 +336,10 @@ const Dashboard = () => {
       <Link to={`/courses/${course.id}`}>
         <CardContent className="cursor-pointer">
           {course.description && <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{course.description}</p>}
-          <div className="flex gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             {course.institution && <span>{course.institution}</span>}
             {course.semester && <span>· {course.semester}</span>}
-            {course.status === "archived" && <span className="text-muted-foreground/60">· Archived</span>}
+            {course.status === "archived" && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Archived</Badge>}
           </div>
         </CardContent>
       </Link>
