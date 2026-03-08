@@ -192,24 +192,13 @@ const QuizDetail = () => {
                     </div>
                   </div>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        disabled={questions.length === 0 || exporting}
-                        size="sm"
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        {exporting ? "Exporting..." : "Export"}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {EXPORT_FORMATS.map((f) => (
-                        <DropdownMenuItem key={f.value} onClick={() => handleExport(f.value)}>
-                          {f.label}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Button
+                    disabled={questions.length === 0}
+                    size="sm"
+                    onClick={() => setShowExportModal(true)}
+                  >
+                    <Download className="h-4 w-4 mr-1" /> Export Quiz
+                  </Button>
                 </div>
 
                 {/* Questions */}
