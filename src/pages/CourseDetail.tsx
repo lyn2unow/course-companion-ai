@@ -318,6 +318,10 @@ const CourseDetail = () => {
                       onCreateQuiz={() => setShowCreateQuiz(true)}
                     />
                   </TabsContent>
+
+                  <TabsContent value="discussions">
+                    <DiscussionsTab courseId={id!} modules={modules} />
+                  </TabsContent>
                 </Tabs>
               </>
             ) : (!course || isError) ? (
