@@ -292,54 +292,14 @@ const Dashboard = () => {
   const showBanner = hasCourses && !bannerDismissed && !allDone;
 
   const renderCourseCard = (course: CourseRow, i: number) => (
-    <Card
+    <CourseCard
       key={course.id}
-      className={`hover:shadow-md transition-shadow h-full opacity-0 animate-fade-in ${course.status === "archived" ? "opacity-60" : ""}`}
-      style={{ animationDelay: `${i * 75}ms` }}
-    >
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <Link to={`/courses/${course.id}`} className="flex-1 min-w-0">
-            <CardTitle className="text-lg flex items-start gap-2 cursor-pointer hover:text-accent transition-colors">
-              <BookOpen className="h-5 w-5 mt-0.5 shrink-0 text-accent" />
-              <span className="truncate">{course.name}</span>
-            </CardTitle>
-          </Link>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => navigate(`/courses/${course.id}`)}>
-                <FolderOpen className="mr-2 h-4 w-4" /> Open course
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openDuplicate(course)}>
-                <Copy className="mr-2 h-4 w-4" /> Duplicate course
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => handleArchive(course)}>
-                <Archive className="mr-2 h-4 w-4" /> {course.status === "archived" ? "Restore course" : "Archive course"}
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteCourse(course)}>
-                <Trash2 className="mr-2 h-4 w-4" /> Delete course
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </CardHeader>
-      <Link to={`/courses/${course.id}`}>
-        <CardContent className="cursor-pointer">
-          {course.description && <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{course.description}</p>}
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {course.institution && <span>{course.institution}</span>}
-            {course.semester && <span>· {course.semester}</span>}
-            {course.status === "archived" && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Archived</Badge>}
-          </div>
-        </CardContent>
-      </Link>
-    </Card>
+      course={course}
+      index={i}
+      onDuplicate={openDuplicate}
+      onArchive={handleArchive}
+      onDelete={setDeleteCourse}
+    />
   );
 
   return (
