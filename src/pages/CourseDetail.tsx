@@ -179,6 +179,17 @@ const CourseDetail = () => {
     }
   };
 
+  const handleSaveHierarchy = async (newSources: string[]) => {
+    if (!id) return;
+    const { error } = await supabase.from("courses").update({ source_hierarchy: newSources }).eq("id", id);
+    if (error) {
+      toast({ title: "Save failed", variant: "destructive" });
+      throw error;
+    }
+    queryClient.invalidateQueries({ queryKey: ["course", id] });
+    toast({ title: "Source hierarchy updated" });
+  };
+
   const sourceHierarchy = Array.isArray(course?.source_hierarchy)
     ? (course.source_hierarchy as string[])
     : [];
