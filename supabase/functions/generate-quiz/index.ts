@@ -23,71 +23,125 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("Unauthorized");
 
-    const { courseId, moduleId, title, questionCount, questionTypes, difficulty } = await req.json();
-    if (!courseId || !title || !questionCount) throw new Error("Missing required fields");
+    const { course_id, module_id, quiz_id, question_count, question_types, difficulty } = await req.json();
+    if (!course_id || !quiz_id || !question_count) throw new Error("Missing required fields: course_id, quiz_id, question_count");
 
-    // Fetch course data
+    // Fetch course
     const { data: course, error: courseErr } = await supabase
       .from("courses")
       .select("*")
-      .eq("id", courseId)
+      .eq("id", course_id)
       .single();
-    if (courseErr) throw new Error("Course not found");
+    if (courseErr || !course) throw new Error("Course not found");
 
-    // Optionally fetch module data
+    // Fetch module if provided
     let moduleContext = "";
-    if (moduleId) {
-      const { data: mod } = await supabase.from("modules").select("*").eq("id", moduleId).single();
+    if (module_id) {
+      const { data: mod } = await supabase.from("modules").select("*").eq("id", module_id).single();
       if (mod) {
-        moduleContext = `\nModule: ${mod.title}\n${mod.description ? `Module Description: ${mod.description}` : ""}`;
+        moduleContext = `\n## MODULE: ${mod.title}\n${mod.description ? `Description: ${mod.description}` : ""}`;
+        const objectives = mod.learning_objectives as string[] | null;
+        if (objectives && objectives.length > 0) {
+          moduleContext += `\nLearning Objectives:\n${objectives.map((o: string) => `- ${o}`).join("\n")}`;
+        }
       }
     }
 
-    // Fetch course materials
+    // Fetch course materials ordered by hierarchy
     const { data: materials } = await supabase
       .from("course_materials")
       .select("file_name, material_type, extracted_text")
-      .eq("course_id", courseId)
+      .eq("course_id", course_id)
       .not("extracted_text", "is", null);
 
-    let materialsContext = "";
-    if (materials && materials.length > 0) {
-      let totalChars = 0;
-      const maxChars = 25000;
-      for (const mat of materials) {
-        if (!mat.extracted_text || totalChars >= maxChars) break;
-        const chunk = mat.extracted_text.substring(0, maxChars - totalChars);
-        materialsContext += `\n\n--- Source: ${mat.file_name} (${mat.material_type}) ---\n${chunk}`;
-        totalChars += chunk.length;
-      }
+    // Build source materials context (5000 chars each, respect hierarchy)
+    const sourceHierarchy = Array.isArray(course.source_hierarchy)
+      ? (course.source_hierarchy as string[])
+      : [];
+
+    let sortedMaterials = materials || [];
+    if (sourceHierarchy.length > 0 && sortedMaterials.length > 0) {
+      sortedMaterials = [...sortedMaterials].sort((a, b) => {
+        const aIdx = sourceHierarchy.indexOf(a.material_type);
+        const bIdx = sourceHierarchy.indexOf(b.material_type);
+        return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+      });
     }
 
-    const typesStr = (questionTypes || ["multiple_choice"]).join(", ");
-    const difficultyStr = difficulty || "intermediate";
+    let materialsContext = "";
+    for (const mat of sortedMaterials) {
+      if (!mat.extracted_text) continue;
+      const chunk = mat.extracted_text.substring(0, 5000);
+      materialsContext += `\n\n--- Source: ${mat.file_name} (${mat.material_type}) ---\n${chunk}`;
+    }
 
-    const prompt = `Generate exactly ${questionCount} quiz questions for the following course content.
+    const typesStr = (question_types || ["multiple_choice"]).join(", ");
+    const difficultyLevel = difficulty || "intermediate";
+    const count = Math.min(30, Math.max(5, question_count));
 
+    const systemPrompt = `You are CourseForge, an expert academic assessment designer. Generate quiz questions grounded strictly in the provided source materials. Never invent facts, cases, or statutes not present in the sources. All questions must be unambiguous with exactly one defensible correct answer.`;
+
+    const userPrompt = `## COURSE CONTEXT
 Course: ${course.name}
 ${course.description ? `Description: ${course.description}` : ""}
+${course.institution ? `Institution: ${course.institution}` : ""}
 ${course.teaching_philosophy ? `Teaching Philosophy: ${course.teaching_philosophy}` : ""}
+${sourceHierarchy.length > 0 ? `Source Priority: ${sourceHierarchy.join(", ")}` : ""}
+
+## SOURCE MATERIALS
+${materialsContext || "(No source materials uploaded yet — generate questions based on course context above.)"}
 ${moduleContext}
-${materialsContext ? `\n=== SOURCE MATERIALS ===\n${materialsContext}` : ""}
 
-Requirements:
-- Question types allowed: ${typesStr}
-- Difficulty level: ${difficultyStr}
-- Each question must have a clear correct answer and explanation
+## TASK
+Generate ${count} quiz questions at ${difficultyLevel} level.
+Question type distribution: ${typesStr}
 
-Return ONLY a valid JSON array (no markdown, no code fences) where each element has:
+For MULTIPLE CHOICE questions:
+- Clear, unambiguous question stem
+- Exactly 4 options labeled A, B, C, D
+- Exactly ONE correct answer
+- Distractors must be plausible but clearly wrong on reflection
+- Include a 1-2 sentence explanation of why the correct answer is right
+- Tag which source material the question is drawn from
+
+For TRUE/FALSE questions:
+- Statement must be definitively true or false — no gray areas
+- No trick questions or double negatives
+- Include explanation
+
+CRITICAL: Return valid JSON only, no markdown, no preamble:
 {
-  "question_text": "The question",
-  "question_type": "multiple_choice" or "true_false",
-  "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
-  "correct_answer": "A) ...",
-  "explanation": "Why this is correct"
-}
-
-For true/false questions, options should be ["True", "False"] and correct_answer should be "True" or "False".`;
+  "questions": [
+    {
+      "question_type": "multiple_choice",
+      "question_text": "...",
+      "answer_options": [
+        {"id": "A", "text": "...", "is_correct": false},
+        {"id": "B", "text": "...", "is_correct": true},
+        {"id": "C", "text": "...", "is_correct": false},
+        {"id": "D", "text": "...", "is_correct": false}
+      ],
+      "correct_answer": "B",
+      "explanation": "...",
+      "points": 1,
+      "source_reference": "...",
+      "difficulty": "${difficultyLevel}"
+    },
+    {
+      "question_type": "true_false",
+      "question_text": "...",
+      "answer_options": [
+        {"id": "A", "text": "True", "is_correct": true},
+        {"id": "B", "text": "False", "is_correct": false}
+      ],
+      "correct_answer": "A",
+      "explanation": "...",
+      "points": 1,
+      "source_reference": "...",
+      "difficulty": "foundational"
+    }
+  ]
+}`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
@@ -101,11 +155,8 @@ For true/false questions, options should be ["True", "False"] and correct_answer
       body: JSON.stringify({
         model: "google/gemini-2.5-pro",
         messages: [
-          {
-            role: "system",
-            content: "You are an expert quiz creator for academic courses. Generate high-quality, pedagogically sound quiz questions. Return ONLY valid JSON arrays with no markdown formatting or code fences.",
-          },
-          { role: "user", content: prompt },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
         ],
       }),
     });
@@ -114,6 +165,11 @@ For true/false questions, options should be ["True", "False"] and correct_answer
       if (aiResponse.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again shortly." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (aiResponse.status === 402) {
+        return new Response(JSON.stringify({ error: "AI usage limit reached. Please add credits." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       const errText = await aiResponse.text();
@@ -131,10 +187,35 @@ For true/false questions, options should be ["True", "False"] and correct_answer
       content = content.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
     }
 
-    const questions = JSON.parse(content);
-    if (!Array.isArray(questions)) throw new Error("Invalid response format");
+    const parsed = JSON.parse(content);
+    const questions = parsed.questions;
+    if (!Array.isArray(questions)) throw new Error("Invalid response format — expected questions array");
 
-    return new Response(JSON.stringify({ questions }), {
+    // Save questions to quiz_questions table
+    const questionsToInsert = questions.map((q: any, i: number) => ({
+      quiz_id,
+      user_id: user.id,
+      question_text: q.question_text,
+      question_type: q.question_type || "multiple_choice",
+      options: q.answer_options || [],
+      correct_answer: q.correct_answer,
+      explanation: q.explanation || null,
+      sort_order: i,
+    }));
+
+    const { data: savedQuestions, error: insertErr } = await supabase
+      .from("quiz_questions")
+      .insert(questionsToInsert)
+      .select("*");
+    if (insertErr) throw new Error(`Failed to save questions: ${insertErr.message}`);
+
+    // Update quiz question_count
+    await supabase
+      .from("quizzes")
+      .update({ question_count: questions.length })
+      .eq("id", quiz_id);
+
+    return new Response(JSON.stringify({ questions: savedQuestions }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
