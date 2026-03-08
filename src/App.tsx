@@ -18,6 +18,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const CourseSetup = lazy(() => import("./pages/CourseSetup"));
 const CourseDetail = lazy(() => import("./pages/CourseDetail"));
 const ModuleDetail = lazy(() => import("./pages/ModuleDetail"));
+const QuizDetail = lazy(() => import("./pages/QuizDetail"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
