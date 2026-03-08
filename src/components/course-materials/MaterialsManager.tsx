@@ -13,7 +13,7 @@ import { Upload, ClipboardPaste } from "lucide-react";
 import MaterialsList from "./MaterialsList";
 import PasteContentDialog from "./PasteContentDialog";
 
-const MATERIAL_TYPES = [
+const DEFAULT_MATERIAL_TYPES = [
   { value: "syllabus", label: "Syllabus" },
   { value: "lecture_notes", label: "Lecture Notes" },
   { value: "textbook", label: "Textbook" },
@@ -26,6 +26,7 @@ const ACCEPTED_TYPES = ".pdf,.docx,.doc,.txt,.xls,.xlsx,.zip,.qti";
 
 interface MaterialsManagerProps {
   courseId: string;
+  sourceHierarchy?: string[];
 }
 
 const MaterialsManager = ({ courseId }: MaterialsManagerProps) => {
