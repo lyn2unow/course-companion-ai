@@ -237,6 +237,13 @@ const QuizDetail = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ExportQuizDialog
+        open={showExportModal}
+        onOpenChange={setShowExportModal}
+        onExport={handleExport}
+        isExporting={exporting}
+      />
     </div>
   );
 };
