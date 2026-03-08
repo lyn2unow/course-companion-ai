@@ -6,6 +6,7 @@ import AppHeader from "@/components/layout/AppHeader";
 import PageContainer from "@/components/layout/PageContainer";
 import PageTransition from "@/components/layout/PageTransition";
 import QuestionCard from "@/components/quizzes/QuestionCard";
+import ExportQuizDialog from "@/components/quizzes/ExportQuizDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,17 +20,6 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-const EXPORT_FORMATS = [
-  { value: "csv", label: "CSV (Universal)", ext: "csv" },
-  { value: "qti_canvas", label: "QTI — Canvas", ext: "zip" },
-  { value: "qti_blackboard", label: "QTI — Blackboard", ext: "zip" },
-  { value: "qti_brightspace", label: "QTI — Brightspace", ext: "zip" },
-  { value: "gift_moodle", label: "GIFT — Moodle", ext: "txt" },
-] as const;
 
 const QuizDetail = () => {
   const { courseId, quizId } = useParams<{ courseId: string; quizId: string }>();
@@ -41,6 +31,7 @@ const QuizDetail = () => {
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
   const [pointsMap, setPointsMap] = useState<Record<string, number>>({});
   const [exporting, setExporting] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const { data: course } = useQuery({
     queryKey: ["course", courseId],
@@ -120,7 +111,6 @@ const QuizDetail = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Download the file
       const bytes = Uint8Array.from(atob(data.file), (c) => c.charCodeAt(0));
       const blob = new Blob([bytes], { type: data.mimeType });
       const url = URL.createObjectURL(blob);
@@ -129,6 +119,7 @@ const QuizDetail = () => {
       a.download = data.filename;
       a.click();
       URL.revokeObjectURL(url);
+      setShowExportModal(false);
       toast({ title: "Quiz exported successfully" });
     } catch (e: any) {
       toast({ title: "Export failed", description: e.message, variant: "destructive" });
@@ -201,24 +192,13 @@ const QuizDetail = () => {
                     </div>
                   </div>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        disabled={questions.length === 0 || exporting}
-                        size="sm"
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        {exporting ? "Exporting..." : "Export"}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {EXPORT_FORMATS.map((f) => (
-                        <DropdownMenuItem key={f.value} onClick={() => handleExport(f.value)}>
-                          {f.label}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Button
+                    disabled={questions.length === 0}
+                    size="sm"
+                    onClick={() => setShowExportModal(true)}
+                  >
+                    <Download className="h-4 w-4 mr-1" /> Export Quiz
+                  </Button>
                 </div>
 
                 {/* Questions */}
@@ -257,6 +237,13 @@ const QuizDetail = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ExportQuizDialog
+        open={showExportModal}
+        onOpenChange={setShowExportModal}
+        onExport={handleExport}
+        isExporting={exporting}
+      />
     </div>
   );
 };
