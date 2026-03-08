@@ -111,7 +111,6 @@ const QuizDetail = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Download the file
       const bytes = Uint8Array.from(atob(data.file), (c) => c.charCodeAt(0));
       const blob = new Blob([bytes], { type: data.mimeType });
       const url = URL.createObjectURL(blob);
@@ -120,6 +119,7 @@ const QuizDetail = () => {
       a.download = data.filename;
       a.click();
       URL.revokeObjectURL(url);
+      setShowExportModal(false);
       toast({ title: "Quiz exported successfully" });
     } catch (e: any) {
       toast({ title: "Export failed", description: e.message, variant: "destructive" });
