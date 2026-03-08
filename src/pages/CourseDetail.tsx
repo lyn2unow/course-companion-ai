@@ -224,7 +224,18 @@ const CourseDetail = () => {
                     )}
                     {sourceHierarchy.length > 0 && (
                       <div>
-                        <span className="text-xs font-semibold uppercase text-muted-foreground">Source Hierarchy</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold uppercase text-muted-foreground">Source Hierarchy</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5"
+                            onClick={() => setShowEditHierarchy(true)}
+                            title="Edit source hierarchy"
+                          >
+                            <Pencil className="h-3 w-3 text-muted-foreground" />
+                          </Button>
+                        </div>
                         <p className="text-sm mt-1">{sourceHierarchy.join(" → ")}</p>
                       </div>
                     )}
