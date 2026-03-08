@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import AuthLayout from "@/components/layout/AuthLayout";
+import { AlertCircle } from "lucide-react";
 
 const ResetPassword = () => {
   const { toast } = useToast();
@@ -13,13 +14,33 @@ const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
+  const [expired, setExpired] = useState(false);
+  const readyRef = useRef(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") setReady(true);
+    // Check for existing session (token already processed by Supabase client)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        readyRef.current = true;
+        setReady(true);
+      }
     });
-    if (window.location.hash.includes("type=recovery")) setReady(true);
-    return () => subscription.unsubscribe();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        readyRef.current = true;
+        setReady(true);
+      }
+    });
+
+    const timer = setTimeout(() => {
+      if (!readyRef.current) setExpired(true);
+    }, 5000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -31,12 +52,27 @@ const ResetPassword = () => {
     if (error) {
       toast({ variant: "destructive", title: "Error", description: error.message });
     } else {
-      toast({ title: "Password updated", description: "You can now sign in with your new password." });
-      navigate("/login");
+      toast({ title: "Password updated", description: "You're all set." });
+      navigate("/dashboard");
     }
 
     setLoading(false);
   };
+
+  if (expired && !ready) {
+    return (
+      <AuthLayout>
+        <div className="space-y-4 text-center">
+          <AlertCircle className="h-10 w-10 text-destructive mx-auto" />
+          <h1 className="text-xl font-bold text-card-foreground">Reset link expired or invalid</h1>
+          <p className="text-sm text-muted-foreground">Please request a new password reset link.</p>
+          <Button asChild className="w-full">
+            <Link to="/forgot-password">Back to Forgot Password</Link>
+          </Button>
+        </div>
+      </AuthLayout>
+    );
+  }
 
   if (!ready) {
     return (
