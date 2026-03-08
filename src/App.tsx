@@ -19,6 +19,7 @@ const CourseSetup = lazy(() => import("./pages/CourseSetup"));
 const CourseDetail = lazy(() => import("./pages/CourseDetail"));
 const ModuleDetail = lazy(() => import("./pages/ModuleDetail"));
 const QuizDetail = lazy(() => import("./pages/QuizDetail"));
+const Settings = lazy(() => import("./pages/Settings"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -81,6 +82,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <QuizDetail />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <Settings />
                     </ProtectedRoute>
                   }
                 />
