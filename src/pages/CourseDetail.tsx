@@ -121,6 +121,78 @@ const CourseDetail = () => {
     queryClient.invalidateQueries({ queryKey: ["modules", id] });
   };
 
+  const handleCreateQuiz = async (params: {
+    title: string;
+    moduleId: string | null;
+    questionCount: number;
+    questionTypes: string[];
+    difficulty: string;
+  }) => {
+    if (!user || !id) return;
+    // Need at least one module for the quiz
+    const targetModuleId = params.moduleId ?? modules[0]?.id;
+    if (!targetModuleId) {
+      toast({ title: "Add a module first", variant: "destructive" });
+      return;
+    }
+    setCreatingQuiz(true);
+    try {
+      // Call generate-quiz edge function
+      const { data, error } = await supabase.functions.invoke("generate-quiz", {
+        body: {
+          courseId: id,
+          moduleId: targetModuleId,
+          title: params.title,
+          questionCount: params.questionCount,
+          questionTypes: params.questionTypes,
+          difficulty: params.difficulty,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // Create quiz record
+      const { data: quiz, error: quizErr } = await supabase
+        .from("quizzes")
+        .insert({
+          title: params.title,
+          module_id: targetModuleId,
+          user_id: user.id,
+          question_count: data.questions.length,
+          question_types: params.questionTypes,
+        })
+        .select("id")
+        .single();
+      if (quizErr) throw quizErr;
+
+      // Insert questions
+      const questionsToInsert = data.questions.map((q: any, i: number) => ({
+        quiz_id: quiz.id,
+        user_id: user.id,
+        question_text: q.question_text,
+        question_type: q.question_type || "multiple_choice",
+        options: q.options || [],
+        correct_answer: q.correct_answer,
+        explanation: q.explanation || null,
+        sort_order: i,
+      }));
+
+      const { error: insertErr } = await supabase.from("quiz_questions").insert(questionsToInsert);
+      if (insertErr) throw insertErr;
+
+      queryClient.invalidateQueries({ queryKey: ["quizzes", id] });
+      setShowCreateQuiz(false);
+      toast({ title: "Quiz generated successfully" });
+
+      // Navigate to quiz detail
+      window.location.href = `/courses/${id}/quizzes/${quiz.id}`;
+    } catch (e: any) {
+      toast({ title: "Quiz generation failed", description: e.message, variant: "destructive" });
+    } finally {
+      setCreatingQuiz(false);
+    }
+  };
+
   const sourceHierarchy = Array.isArray(course?.source_hierarchy)
     ? (course.source_hierarchy as string[])
     : [];
