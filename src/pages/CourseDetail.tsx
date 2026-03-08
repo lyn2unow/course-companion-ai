@@ -129,7 +129,6 @@ const CourseDetail = () => {
     difficulty: string;
   }) => {
     if (!user || !id) return;
-    // Need at least one module for the quiz
     const targetModuleId = params.moduleId ?? modules[0]?.id;
     if (!targetModuleId) {
       toast({ title: "Add a module first", variant: "destructive" });
@@ -137,48 +136,33 @@ const CourseDetail = () => {
     }
     setCreatingQuiz(true);
     try {
-      // Call generate-quiz edge function
-      const { data, error } = await supabase.functions.invoke("generate-quiz", {
-        body: {
-          courseId: id,
-          moduleId: targetModuleId,
-          title: params.title,
-          questionCount: params.questionCount,
-          questionTypes: params.questionTypes,
-          difficulty: params.difficulty,
-        },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      // Create quiz record
+      // Create quiz record first
       const { data: quiz, error: quizErr } = await supabase
         .from("quizzes")
         .insert({
           title: params.title,
           module_id: targetModuleId,
           user_id: user.id,
-          question_count: data.questions.length,
+          question_count: params.questionCount,
           question_types: params.questionTypes,
         })
         .select("id")
         .single();
       if (quizErr) throw quizErr;
 
-      // Insert questions
-      const questionsToInsert = data.questions.map((q: any, i: number) => ({
-        quiz_id: quiz.id,
-        user_id: user.id,
-        question_text: q.question_text,
-        question_type: q.question_type || "multiple_choice",
-        options: q.options || [],
-        correct_answer: q.correct_answer,
-        explanation: q.explanation || null,
-        sort_order: i,
-      }));
-
-      const { error: insertErr } = await supabase.from("quiz_questions").insert(questionsToInsert);
-      if (insertErr) throw insertErr;
+      // Call generate-quiz edge function (it saves questions server-side)
+      const { data, error } = await supabase.functions.invoke("generate-quiz", {
+        body: {
+          course_id: id,
+          module_id: targetModuleId,
+          quiz_id: quiz.id,
+          question_count: params.questionCount,
+          question_types: params.questionTypes,
+          difficulty: params.difficulty,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       queryClient.invalidateQueries({ queryKey: ["quizzes", id] });
       setShowCreateQuiz(false);

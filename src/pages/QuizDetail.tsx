@@ -19,6 +19,17 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+const EXPORT_FORMATS = [
+  { value: "csv", label: "CSV (Universal)", ext: "csv" },
+  { value: "qti_canvas", label: "QTI — Canvas", ext: "zip" },
+  { value: "qti_blackboard", label: "QTI — Blackboard", ext: "zip" },
+  { value: "qti_brightspace", label: "QTI — Brightspace", ext: "zip" },
+  { value: "gift_moodle", label: "GIFT — Moodle", ext: "txt" },
+] as const;
 
 const QuizDetail = () => {
   const { courseId, quizId } = useParams<{ courseId: string; quizId: string }>();
@@ -29,6 +40,7 @@ const QuizDetail = () => {
   const [titleVal, setTitleVal] = useState("");
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
   const [pointsMap, setPointsMap] = useState<Record<string, number>>({});
+  const [exporting, setExporting] = useState(false);
 
   const { data: course } = useQuery({
     queryKey: ["course", courseId],
@@ -59,7 +71,6 @@ const QuizDetail = () => {
         .eq("quiz_id", quizId!)
         .order("sort_order");
       if (error) throw error;
-      // init points map
       const pm: Record<string, number> = {};
       data?.forEach((q) => {
         pm[q.id] = pointsMap[q.id] ?? 1;
@@ -100,24 +111,11 @@ const QuizDetail = () => {
     setDeleteQId(null);
   };
 
-  const handleExport = async () => {
+  const handleExport = async (format: string) => {
+    setExporting(true);
     try {
-      const content = questions
-        .map((q, i) => {
-          const opts = Array.isArray(q.options)
-            ? (q.options as string[]).join("\n")
-            : "";
-          return `Q${i + 1}. ${q.question_text}\n${opts}\nCorrect: ${q.correct_answer}\nExplanation: ${q.explanation ?? ""}`;
-        })
-        .join("\n\n");
-
-      const { data, error } = await supabase.functions.invoke("export-content", {
-        body: {
-          content,
-          contentType: "quiz",
-          format: "qti",
-          title: quiz?.title ?? "Quiz",
-        },
+      const { data, error } = await supabase.functions.invoke("export-quiz", {
+        body: { quiz_id: quizId, format },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -131,9 +129,11 @@ const QuizDetail = () => {
       a.download = data.filename;
       a.click();
       URL.revokeObjectURL(url);
-      toast({ title: "Quiz exported" });
+      toast({ title: "Quiz exported successfully" });
     } catch (e: any) {
       toast({ title: "Export failed", description: e.message, variant: "destructive" });
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -200,13 +200,25 @@ const QuizDetail = () => {
                       <span>{totalPoints} total points</span>
                     </div>
                   </div>
-                  <Button
-                    onClick={handleExport}
-                    disabled={questions.length === 0}
-                    size="sm"
-                  >
-                    <Download className="h-4 w-4 mr-1" /> Export QTI
-                  </Button>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        disabled={questions.length === 0 || exporting}
+                        size="sm"
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        {exporting ? "Exporting..." : "Export"}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {EXPORT_FORMATS.map((f) => (
+                        <DropdownMenuItem key={f.value} onClick={() => handleExport(f.value)}>
+                          {f.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
                 {/* Questions */}
