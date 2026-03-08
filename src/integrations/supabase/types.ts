@@ -190,31 +190,49 @@ export type Database = {
           content: string
           content_type: string
           created_at: string
+          deleted_at: string | null
+          edited_content: string | null
+          human_reviewed: boolean
+          human_reviewed_at: string | null
           id: string
           is_approved: boolean
+          is_current_version: boolean
           module_id: string
           updated_at: string
           user_id: string
+          version: number
         }
         Insert: {
           content: string
           content_type: string
           created_at?: string
+          deleted_at?: string | null
+          edited_content?: string | null
+          human_reviewed?: boolean
+          human_reviewed_at?: string | null
           id?: string
           is_approved?: boolean
+          is_current_version?: boolean
           module_id: string
           updated_at?: string
           user_id: string
+          version?: number
         }
         Update: {
           content?: string
           content_type?: string
           created_at?: string
+          deleted_at?: string | null
+          edited_content?: string | null
+          human_reviewed?: boolean
+          human_reviewed_at?: string | null
           id?: string
           is_approved?: boolean
+          is_current_version?: boolean
           module_id?: string
           updated_at?: string
           user_id?: string
+          version?: number
         }
         Relationships: [
           {

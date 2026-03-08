@@ -7,14 +7,19 @@ interface ContentItem {
   content: string;
   content_type: string;
   is_approved: boolean;
+  human_reviewed: boolean;
+  human_reviewed_at: string | null;
+  edited_content: string | null;
+  version: number;
   created_at: string;
 }
 
 interface GenerateContentPanelProps {
   contents: ContentItem[];
   onGenerate: (contentType: string) => void;
-  onUpdate: (id: string, content: string) => void;
-  onToggleApproval: (id: string, approved: boolean) => void;
+  onAutoSave: (id: string, editedContent: string) => Promise<void>;
+  onToggleReviewed: (id: string, reviewed: boolean) => void;
+  onRegenerate: (id: string, contentType: string, currentVersion: number) => void;
   onDelete: (id: string) => void;
   generatingType: string | null;
 }
@@ -29,8 +34,9 @@ const CONTENT_TYPES = [
 const GenerateContentPanel = ({
   contents,
   onGenerate,
-  onUpdate,
-  onToggleApproval,
+  onAutoSave,
+  onToggleReviewed,
+  onRegenerate,
   onDelete,
   generatingType,
 }: GenerateContentPanelProps) => {
@@ -69,10 +75,10 @@ const GenerateContentPanel = ({
             <ContentCard
               key={item.id}
               content={item}
-              onUpdate={onUpdate}
-              onToggleApproval={onToggleApproval}
+              onAutoSave={onAutoSave}
+              onToggleReviewed={onToggleReviewed}
               onDelete={onDelete}
-              onRegenerate={() => onGenerate(item.content_type)}
+              onRegenerate={() => onRegenerate(item.id, item.content_type, item.version)}
             />
           ))}
         </div>

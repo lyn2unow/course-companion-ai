@@ -59,7 +59,9 @@ const ModuleDetail = () => {
         .from("generated_content")
         .select("*")
         .eq("module_id", moduleId!)
-        .order("created_at", { ascending: false });
+        .eq("is_current_version", true)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true });
       if (error) throw error;
       return data;
     },
@@ -80,6 +82,8 @@ const ModuleDetail = () => {
         content_type: contentType,
         content: data.content,
         user_id: user.id,
+        is_current_version: true,
+        version: 1,
       });
       if (insertError) throw insertError;
       queryClient.invalidateQueries({ queryKey: ["generated_content", moduleId] });
@@ -91,27 +95,66 @@ const ModuleDetail = () => {
     }
   };
 
-  const handleUpdate = async (id: string, content: string) => {
-    const { error } = await supabase.from("generated_content").update({ content }).eq("id", id);
+  const handleAutoSave = async (id: string, editedContent: string) => {
+    const { error } = await supabase
+      .from("generated_content")
+      .update({ edited_content: editedContent, content: editedContent })
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Save failed", variant: "destructive" });
+      throw error;
+    }
+    queryClient.invalidateQueries({ queryKey: ["generated_content", moduleId] });
+  };
+
+  const handleToggleReviewed = async (id: string, reviewed: boolean) => {
+    const updates = reviewed
+      ? { human_reviewed: true, human_reviewed_at: new Date().toISOString(), is_approved: true }
+      : { human_reviewed: false, human_reviewed_at: null, is_approved: false };
+    const { error } = await supabase.from("generated_content").update(updates).eq("id", id);
     if (error) {
       toast({ title: "Update failed", variant: "destructive" });
     } else {
       queryClient.invalidateQueries({ queryKey: ["generated_content", moduleId] });
-      toast({ title: "Content updated" });
     }
   };
 
-  const handleToggleApproval = async (id: string, approved: boolean) => {
-    const { error } = await supabase.from("generated_content").update({ is_approved: approved }).eq("id", id);
-    if (error) {
-      toast({ title: "Update failed", variant: "destructive" });
-    } else {
+  const handleRegenerate = async (existingId: string, contentType: string, currentVersion: number) => {
+    if (!user || !courseId || !moduleId) return;
+    setGeneratingType(contentType);
+    try {
+      // Mark old version as not current
+      await supabase.from("generated_content").update({ is_current_version: false }).eq("id", existingId);
+
+      const { data, error } = await supabase.functions.invoke("generate-content", {
+        body: { moduleId, contentType, courseId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const { error: insertError } = await supabase.from("generated_content").insert({
+        module_id: moduleId,
+        content_type: contentType,
+        content: data.content,
+        user_id: user.id,
+        is_current_version: true,
+        version: currentVersion + 1,
+      });
+      if (insertError) throw insertError;
       queryClient.invalidateQueries({ queryKey: ["generated_content", moduleId] });
+      toast({ title: "Content regenerated successfully" });
+    } catch (e: any) {
+      toast({ title: "Regeneration failed", description: e.message, variant: "destructive" });
+    } finally {
+      setGeneratingType(null);
     }
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("generated_content").delete().eq("id", id);
+    const { error } = await supabase
+      .from("generated_content")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id);
     if (error) {
       toast({ title: "Delete failed", variant: "destructive" });
     } else {
@@ -190,8 +233,9 @@ const ModuleDetail = () => {
                 <GenerateContentPanel
                   contents={contents}
                   onGenerate={handleGenerate}
-                  onUpdate={handleUpdate}
-                  onToggleApproval={handleToggleApproval}
+                  onAutoSave={handleAutoSave}
+                  onToggleReviewed={handleToggleReviewed}
+                  onRegenerate={handleRegenerate}
                   onDelete={handleDelete}
                   generatingType={generatingType}
                 />
