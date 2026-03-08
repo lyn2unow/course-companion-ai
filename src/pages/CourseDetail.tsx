@@ -330,6 +330,14 @@ const CourseDetail = () => {
           isLoading={addingModule}
         />
 
+        <CreateQuizDialog
+          open={showCreateQuiz}
+          onOpenChange={setShowCreateQuiz}
+          modules={modules}
+          onSubmit={handleCreateQuiz}
+          isLoading={creatingQuiz}
+        />
+
         <AlertDialog open={!!deleteModuleId} onOpenChange={(open) => !open && setDeleteModuleId(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
