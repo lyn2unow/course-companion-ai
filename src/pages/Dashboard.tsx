@@ -27,6 +27,7 @@ import {
   Plus, BookOpen, CheckCircle2, Circle, Sparkles, X,
   MoreVertical, FolderOpen, Copy, Archive, Trash2, Eye, EyeOff, Loader2,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 const BANNER_DISMISSED_KEY = "courseforge_onboarding_dismissed";
 
