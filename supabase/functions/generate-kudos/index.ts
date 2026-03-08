@@ -242,7 +242,13 @@ Return valid JSON only:
       if (!aiResponse.ok) {
         const errText = await aiResponse.text();
         console.error("AI kudos error:", aiResponse.status, errText);
-        // Don't fail the whole request, just skip kudos generation
+        if (aiResponse.status === 429) {
+          throw new Error("Rate limit exceeded. Please wait a moment and try again.");
+        }
+        if (aiResponse.status === 402) {
+          throw new Error("AI credits exhausted. Please add funds to continue using AI features.");
+        }
+        // Don't fail the whole request for other errors, just skip kudos generation
       } else {
         const aiData = await aiResponse.json();
         let content = aiData.choices?.[0]?.message?.content || "";
