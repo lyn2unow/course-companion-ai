@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage_log: {
+        Row: {
+          completion_tokens: number | null
+          content_type: string | null
+          course_id: string | null
+          created_at: string
+          error_message: string | null
+          feature: string
+          id: string
+          latency_ms: number | null
+          model: string
+          module_id: string | null
+          prompt_tokens: number | null
+          quiz_id: string | null
+          success: boolean
+          total_tokens: number | null
+          user_id: string
+        }
+        Insert: {
+          completion_tokens?: number | null
+          content_type?: string | null
+          course_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          feature: string
+          id?: string
+          latency_ms?: number | null
+          model: string
+          module_id?: string | null
+          prompt_tokens?: number | null
+          quiz_id?: string | null
+          success?: boolean
+          total_tokens?: number | null
+          user_id: string
+        }
+        Update: {
+          completion_tokens?: number | null
+          content_type?: string | null
+          course_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          feature?: string
+          id?: string
+          latency_ms?: number | null
+          model?: string
+          module_id?: string | null
+          prompt_tokens?: number | null
+          quiz_id?: string | null
+          success?: boolean
+          total_tokens?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       assignments: {
         Row: {
           created_at: string
