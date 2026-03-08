@@ -298,7 +298,7 @@ const Dashboard = () => {
       index={i}
       onDuplicate={openDuplicate}
       onArchive={handleArchive}
-      onDelete={setDeleteCourse}
+      onDelete={(c) => setDeleteCourse(c as CourseRow)}
     />
   );
 
