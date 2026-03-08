@@ -154,9 +154,9 @@ const MaterialsManager = ({ courseId, sourceHierarchy = [] }: MaterialsManagerPr
         <div className="space-y-2">
           <Label htmlFor="material-type">Material Type</Label>
           <Select value={materialType} onValueChange={setMaterialType}>
-            <SelectTrigger id="material-type" className="w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger id="material-type" className="w-[180px]"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {MATERIAL_TYPES.map((t) => (
+              {materialTypes.map((t) => (
                 <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
               ))}
             </SelectContent>

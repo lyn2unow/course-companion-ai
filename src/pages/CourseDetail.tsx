@@ -346,6 +346,13 @@ const CourseDetail = () => {
           isLoading={creatingQuiz}
         />
 
+        <EditSourceHierarchyDialog
+          open={showEditHierarchy}
+          onOpenChange={setShowEditHierarchy}
+          sources={sourceHierarchy}
+          onSave={handleSaveHierarchy}
+        />
+
         <AlertDialog open={!!deleteModuleId} onOpenChange={(open) => !open && setDeleteModuleId(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
