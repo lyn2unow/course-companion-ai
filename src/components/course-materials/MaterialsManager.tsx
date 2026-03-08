@@ -13,7 +13,7 @@ import { Upload, ClipboardPaste } from "lucide-react";
 import MaterialsList from "./MaterialsList";
 import PasteContentDialog from "./PasteContentDialog";
 
-const MATERIAL_TYPES = [
+const DEFAULT_MATERIAL_TYPES = [
   { value: "syllabus", label: "Syllabus" },
   { value: "lecture_notes", label: "Lecture Notes" },
   { value: "textbook", label: "Textbook" },
@@ -26,9 +26,21 @@ const ACCEPTED_TYPES = ".pdf,.docx,.doc,.txt,.xls,.xlsx,.zip,.qti";
 
 interface MaterialsManagerProps {
   courseId: string;
+  sourceHierarchy?: string[];
 }
 
-const MaterialsManager = ({ courseId }: MaterialsManagerProps) => {
+const MaterialsManager = ({ courseId, sourceHierarchy = [] }: MaterialsManagerProps) => {
+  // Build material types: defaults + custom source hierarchy entries
+  const materialTypes = (() => {
+    const defaultValues = DEFAULT_MATERIAL_TYPES.map((t) => t.value);
+    const custom = sourceHierarchy
+      .filter((s) => !defaultValues.includes(s.toLowerCase().replace(/\s+/g, "_")))
+      .map((s) => ({
+        value: s.toLowerCase().replace(/\s+/g, "_"),
+        label: s,
+      }));
+    return [...DEFAULT_MATERIAL_TYPES, ...custom];
+  })();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -142,9 +154,9 @@ const MaterialsManager = ({ courseId }: MaterialsManagerProps) => {
         <div className="space-y-2">
           <Label htmlFor="material-type">Material Type</Label>
           <Select value={materialType} onValueChange={setMaterialType}>
-            <SelectTrigger id="material-type" className="w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger id="material-type" className="w-[180px]"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {MATERIAL_TYPES.map((t) => (
+              {materialTypes.map((t) => (
                 <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
               ))}
             </SelectContent>

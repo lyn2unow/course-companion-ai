@@ -13,7 +13,8 @@ import AddModuleDialog from "@/components/modules/AddModuleDialog";
 import MaterialsManager from "@/components/course-materials/MaterialsManager";
 import QuizList from "@/components/quizzes/QuizList";
 import CreateQuizDialog from "@/components/quizzes/CreateQuizDialog";
-import { Plus, BookOpen, FolderOpen, AlertCircle, FileQuestion } from "lucide-react";
+import EditSourceHierarchyDialog from "@/components/course-setup/EditSourceHierarchyDialog";
+import { Plus, BookOpen, FolderOpen, AlertCircle, FileQuestion, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import {
@@ -48,6 +49,7 @@ const CourseDetail = () => {
   const [addingModule, setAddingModule] = useState(false);
   const [showCreateQuiz, setShowCreateQuiz] = useState(false);
   const [creatingQuiz, setCreatingQuiz] = useState(false);
+  const [showEditHierarchy, setShowEditHierarchy] = useState(false);
 
   const { data: course, isLoading, isError } = useQuery({
     queryKey: ["course", id],
@@ -177,6 +179,17 @@ const CourseDetail = () => {
     }
   };
 
+  const handleSaveHierarchy = async (newSources: string[]) => {
+    if (!id) return;
+    const { error } = await supabase.from("courses").update({ source_hierarchy: newSources }).eq("id", id);
+    if (error) {
+      toast({ title: "Save failed", variant: "destructive" });
+      throw error;
+    }
+    queryClient.invalidateQueries({ queryKey: ["course", id] });
+    toast({ title: "Source hierarchy updated" });
+  };
+
   const sourceHierarchy = Array.isArray(course?.source_hierarchy)
     ? (course.source_hierarchy as string[])
     : [];
@@ -222,7 +235,18 @@ const CourseDetail = () => {
                     )}
                     {sourceHierarchy.length > 0 && (
                       <div>
-                        <span className="text-xs font-semibold uppercase text-muted-foreground">Source Hierarchy</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold uppercase text-muted-foreground">Source Hierarchy</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5"
+                            onClick={() => setShowEditHierarchy(true)}
+                            title="Edit source hierarchy"
+                          >
+                            <Pencil className="h-3 w-3 text-muted-foreground" />
+                          </Button>
+                        </div>
                         <p className="text-sm mt-1">{sourceHierarchy.join(" → ")}</p>
                       </div>
                     )}
@@ -280,7 +304,7 @@ const CourseDetail = () => {
                         Upload source materials so the AI can generate content based on your actual course content.
                       </p>
                     </div>
-                    <MaterialsManager courseId={id!} />
+                    <MaterialsManager courseId={id!} sourceHierarchy={sourceHierarchy} />
                   </TabsContent>
 
                   <TabsContent value="quizzes">
@@ -320,6 +344,13 @@ const CourseDetail = () => {
           modules={modules}
           onSubmit={handleCreateQuiz}
           isLoading={creatingQuiz}
+        />
+
+        <EditSourceHierarchyDialog
+          open={showEditHierarchy}
+          onOpenChange={setShowEditHierarchy}
+          sources={sourceHierarchy}
+          onSave={handleSaveHierarchy}
         />
 
         <AlertDialog open={!!deleteModuleId} onOpenChange={(open) => !open && setDeleteModuleId(null)}>
