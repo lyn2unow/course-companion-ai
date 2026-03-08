@@ -298,6 +298,14 @@ const CourseDetail = () => {
                     </div>
                     <MaterialsManager courseId={id!} />
                   </TabsContent>
+
+                  <TabsContent value="quizzes">
+                    <QuizList
+                      courseId={id!}
+                      modules={modules}
+                      onCreateQuiz={() => setShowCreateQuiz(true)}
+                    />
+                  </TabsContent>
                 </Tabs>
               </>
             ) : (!course || isError) ? (
