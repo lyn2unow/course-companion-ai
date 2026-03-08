@@ -31,6 +31,7 @@ const QuizDetail = () => {
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
   const [pointsMap, setPointsMap] = useState<Record<string, number>>({});
   const [exporting, setExporting] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const { data: course } = useQuery({
     queryKey: ["course", courseId],
