@@ -345,9 +345,15 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          default_difficulty: string | null
+          default_lms: string | null
+          default_semester: string | null
+          default_source_hierarchy: Json | null
+          default_teaching_philosophy: string | null
           display_name: string | null
           id: string
           institution: string | null
+          preferred_tone: string | null
           title: string | null
           updated_at: string
           user_id: string
@@ -355,9 +361,15 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          default_difficulty?: string | null
+          default_lms?: string | null
+          default_semester?: string | null
+          default_source_hierarchy?: Json | null
+          default_teaching_philosophy?: string | null
           display_name?: string | null
           id?: string
           institution?: string | null
+          preferred_tone?: string | null
           title?: string | null
           updated_at?: string
           user_id: string
@@ -365,9 +377,15 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          default_difficulty?: string | null
+          default_lms?: string | null
+          default_semester?: string | null
+          default_source_hierarchy?: Json | null
+          default_teaching_philosophy?: string | null
           display_name?: string | null
           id?: string
           institution?: string | null
+          preferred_tone?: string | null
           title?: string | null
           updated_at?: string
           user_id?: string
