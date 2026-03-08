@@ -242,6 +242,53 @@ export type Database = {
           },
         ]
       }
+      discussion_submissions: {
+        Row: {
+          analysis_id: string
+          created_at: string
+          criteria_matched: string[] | null
+          criteria_missed: string[] | null
+          id: string
+          meets_criteria: boolean
+          post_content: string
+          student_identifier: string
+          user_id: string
+          word_count: number
+        }
+        Insert: {
+          analysis_id: string
+          created_at?: string
+          criteria_matched?: string[] | null
+          criteria_missed?: string[] | null
+          id?: string
+          meets_criteria?: boolean
+          post_content: string
+          student_identifier: string
+          user_id: string
+          word_count?: number
+        }
+        Update: {
+          analysis_id?: string
+          created_at?: string
+          criteria_matched?: string[] | null
+          criteria_missed?: string[] | null
+          id?: string
+          meets_criteria?: boolean
+          post_content?: string
+          student_identifier?: string
+          user_id?: string
+          word_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discussion_submissions_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "discussion_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       generated_content: {
         Row: {
           content: string
@@ -344,6 +391,57 @@ export type Database = {
             columns: ["assignment_id"]
             isOneToOne: false
             referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kudos_messages: {
+        Row: {
+          analysis_id: string
+          created_at: string
+          id: string
+          is_sent: boolean
+          message: string
+          student_identifier: string
+          submission_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_id: string
+          created_at?: string
+          id?: string
+          is_sent?: boolean
+          message: string
+          student_identifier: string
+          submission_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_id?: string
+          created_at?: string
+          id?: string
+          is_sent?: boolean
+          message?: string
+          student_identifier?: string
+          submission_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kudos_messages_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "discussion_analyses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kudos_messages_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "discussion_submissions"
             referencedColumns: ["id"]
           },
         ]

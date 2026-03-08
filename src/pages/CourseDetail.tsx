@@ -12,9 +12,10 @@ import ModuleCard from "@/components/modules/ModuleCard";
 import AddModuleDialog from "@/components/modules/AddModuleDialog";
 import MaterialsManager from "@/components/course-materials/MaterialsManager";
 import QuizList from "@/components/quizzes/QuizList";
+import DiscussionsTab from "@/components/discussions/DiscussionsTab";
 import CreateQuizDialog from "@/components/quizzes/CreateQuizDialog";
 import EditSourceHierarchyDialog from "@/components/course-setup/EditSourceHierarchyDialog";
-import { Plus, BookOpen, FolderOpen, AlertCircle, FileQuestion, Pencil } from "lucide-react";
+import { Plus, BookOpen, FolderOpen, AlertCircle, FileQuestion, Pencil, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import {
@@ -254,7 +255,7 @@ const CourseDetail = () => {
                 )}
 
                 <Tabs defaultValue="modules" className="mt-8">
-                  <TabsList className="grid w-full grid-cols-3 max-w-sm">
+                  <TabsList className="grid w-full grid-cols-4 max-w-md">
                     <TabsTrigger value="modules" className="gap-2">
                       <BookOpen className="h-4 w-4" /> Modules
                     </TabsTrigger>
@@ -263,6 +264,9 @@ const CourseDetail = () => {
                     </TabsTrigger>
                     <TabsTrigger value="quizzes" className="gap-2">
                       <FileQuestion className="h-4 w-4" /> Quizzes
+                    </TabsTrigger>
+                    <TabsTrigger value="discussions" className="gap-2">
+                      <MessageSquare className="h-4 w-4" /> Discussions
                     </TabsTrigger>
                   </TabsList>
 
@@ -313,6 +317,10 @@ const CourseDetail = () => {
                       modules={modules}
                       onCreateQuiz={() => setShowCreateQuiz(true)}
                     />
+                  </TabsContent>
+
+                  <TabsContent value="discussions">
+                    <DiscussionsTab courseId={id!} modules={modules} />
                   </TabsContent>
                 </Tabs>
               </>
