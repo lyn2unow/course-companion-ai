@@ -46,6 +46,8 @@ const CourseDetail = () => {
   const [showAddModule, setShowAddModule] = useState(false);
   const [deleteModuleId, setDeleteModuleId] = useState<string | null>(null);
   const [addingModule, setAddingModule] = useState(false);
+  const [showCreateQuiz, setShowCreateQuiz] = useState(false);
+  const [creatingQuiz, setCreatingQuiz] = useState(false);
 
   const { data: course, isLoading, isError } = useQuery({
     queryKey: ["course", id],
