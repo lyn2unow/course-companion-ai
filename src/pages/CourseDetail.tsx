@@ -255,7 +255,7 @@ const CourseDetail = () => {
                 )}
 
                 <Tabs defaultValue="modules" className="mt-8">
-                  <TabsList className="grid w-full grid-cols-3 max-w-sm">
+                  <TabsList className="grid w-full grid-cols-4 max-w-md">
                     <TabsTrigger value="modules" className="gap-2">
                       <BookOpen className="h-4 w-4" /> Modules
                     </TabsTrigger>
@@ -264,6 +264,9 @@ const CourseDetail = () => {
                     </TabsTrigger>
                     <TabsTrigger value="quizzes" className="gap-2">
                       <FileQuestion className="h-4 w-4" /> Quizzes
+                    </TabsTrigger>
+                    <TabsTrigger value="discussions" className="gap-2">
+                      <MessageSquare className="h-4 w-4" /> Discussions
                     </TabsTrigger>
                   </TabsList>
 
