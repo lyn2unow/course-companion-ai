@@ -12,6 +12,7 @@ import ModuleCard from "@/components/modules/ModuleCard";
 import AddModuleDialog from "@/components/modules/AddModuleDialog";
 import MaterialsManager from "@/components/course-materials/MaterialsManager";
 import QuizList from "@/components/quizzes/QuizList";
+import DiscussionsTab from "@/components/discussions/DiscussionsTab";
 import CreateQuizDialog from "@/components/quizzes/CreateQuizDialog";
 import EditSourceHierarchyDialog from "@/components/course-setup/EditSourceHierarchyDialog";
 import { Plus, BookOpen, FolderOpen, AlertCircle, FileQuestion, Pencil } from "lucide-react";
