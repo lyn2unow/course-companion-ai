@@ -168,6 +168,7 @@ export type Database = {
           name: string
           semester: string | null
           source_hierarchy: Json | null
+          status: string
           teaching_philosophy: string | null
           updated_at: string
           user_id: string
@@ -180,6 +181,7 @@ export type Database = {
           name: string
           semester?: string | null
           source_hierarchy?: Json | null
+          status?: string
           teaching_philosophy?: string | null
           updated_at?: string
           user_id: string
@@ -192,6 +194,7 @@ export type Database = {
           name?: string
           semester?: string | null
           source_hierarchy?: Json | null
+          status?: string
           teaching_philosophy?: string | null
           updated_at?: string
           user_id?: string
