@@ -29,7 +29,18 @@ interface MaterialsManagerProps {
   sourceHierarchy?: string[];
 }
 
-const MaterialsManager = ({ courseId }: MaterialsManagerProps) => {
+const MaterialsManager = ({ courseId, sourceHierarchy = [] }: MaterialsManagerProps) => {
+  // Build material types: defaults + custom source hierarchy entries
+  const materialTypes = (() => {
+    const defaultValues = DEFAULT_MATERIAL_TYPES.map((t) => t.value);
+    const custom = sourceHierarchy
+      .filter((s) => !defaultValues.includes(s.toLowerCase().replace(/\s+/g, "_")))
+      .map((s) => ({
+        value: s.toLowerCase().replace(/\s+/g, "_"),
+        label: s,
+      }));
+    return [...DEFAULT_MATERIAL_TYPES, ...custom];
+  })();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
