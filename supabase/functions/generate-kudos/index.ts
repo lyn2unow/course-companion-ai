@@ -131,12 +131,11 @@ serve(async (req) => {
 
     // Create analysis record
     const targetModuleId = module_id || null;
-    // Use first module if none specified
+    // Use first module if available, but allow null
     let analysisModuleId = targetModuleId;
     if (!analysisModuleId) {
       const { data: firstMod } = await supabase.from("modules").select("id").eq("course_id", course_id).order("sort_order").limit(1).single();
-      analysisModuleId = firstMod?.id;
-      if (!analysisModuleId) throw new Error("No modules found — create a module first");
+      analysisModuleId = firstMod?.id || null;
     }
 
     const { data: analysis, error: analysisErr } = await supabase
