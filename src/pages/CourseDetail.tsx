@@ -246,12 +246,15 @@ const CourseDetail = () => {
                 )}
 
                 <Tabs defaultValue="modules" className="mt-8">
-                  <TabsList className="grid w-full grid-cols-2 max-w-xs">
+                  <TabsList className="grid w-full grid-cols-3 max-w-sm">
                     <TabsTrigger value="modules" className="gap-2">
                       <BookOpen className="h-4 w-4" /> Modules
                     </TabsTrigger>
                     <TabsTrigger value="materials" className="gap-2">
                       <FolderOpen className="h-4 w-4" /> Materials
+                    </TabsTrigger>
+                    <TabsTrigger value="quizzes" className="gap-2">
+                      <FileQuestion className="h-4 w-4" /> Quizzes
                     </TabsTrigger>
                   </TabsList>
 
