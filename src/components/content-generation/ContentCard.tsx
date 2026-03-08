@@ -1,10 +1,11 @@
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Pencil, Trash2, RefreshCw, Copy, CheckCircle } from "lucide-react";
+import { Pencil, Trash2, RefreshCw, Copy, CheckCircle, Eye } from "lucide-react";
 import ContentEditor from "./ContentEditor";
 import ExportMenu from "./ExportMenu";
 import { format } from "date-fns";
@@ -33,7 +34,7 @@ interface ContentCardProps {
 }
 
 const ContentCard = ({ content: item, onUpdate, onToggleApproval, onDelete, onRegenerate, isUpdating }: ContentCardProps) => {
-  const [editing, setEditing] = useState(false);
+  const [mode, setMode] = useState<"preview" | "edit">("preview");
   const { toast } = useToast();
 
   const handleCopy = async () => {
@@ -62,6 +63,27 @@ const ContentCard = ({ content: item, onUpdate, onToggleApproval, onDelete, onRe
           )}
         </div>
         <div className="flex items-center gap-1">
+          {/* Preview / Edit toggle */}
+          <div className="flex items-center border border-border rounded-md mr-1">
+            <Button
+              variant={mode === "preview" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-7 w-7 rounded-r-none"
+              onClick={() => setMode("preview")}
+              aria-label="Preview mode"
+            >
+              <Eye className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant={mode === "edit" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-7 w-7 rounded-l-none"
+              onClick={() => setMode("edit")}
+              aria-label="Edit mode"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          </div>
           <div className="flex items-center gap-2 mr-2">
             <Label htmlFor={`approve-${item.id}`} className="text-xs text-muted-foreground">Mark as Reviewed</Label>
             <Switch
@@ -70,9 +92,6 @@ const ContentCard = ({ content: item, onUpdate, onToggleApproval, onDelete, onRe
               onCheckedChange={(checked) => onToggleApproval(item.id, checked)}
             />
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditing(true)} aria-label="Edit">
-            <Pencil className="h-4 w-4" />
-          </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleCopy} aria-label="Copy to clipboard">
             <Copy className="h-4 w-4" />
           </Button>
@@ -86,19 +105,19 @@ const ContentCard = ({ content: item, onUpdate, onToggleApproval, onDelete, onRe
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4 pt-0">
-        {editing ? (
+        {mode === "edit" ? (
           <ContentEditor
             initialContent={item.content}
             onSave={(newContent) => {
               onUpdate(item.id, newContent);
-              setEditing(false);
+              setMode("preview");
             }}
-            onCancel={() => setEditing(false)}
+            onCancel={() => setMode("preview")}
             isSaving={isUpdating}
           />
         ) : (
-          <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap">
-            {item.content}
+          <div className="prose prose-sm max-w-none text-foreground">
+            <ReactMarkdown>{item.content}</ReactMarkdown>
           </div>
         )}
       </CardContent>
