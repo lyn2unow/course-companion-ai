@@ -207,7 +207,7 @@ export type Database = {
           criteria: Json | null
           id: string
           kudos_messages: Json | null
-          module_id: string
+          module_id: string | null
           status: string
           updated_at: string
           user_id: string
@@ -217,7 +217,7 @@ export type Database = {
           criteria?: Json | null
           id?: string
           kudos_messages?: Json | null
-          module_id: string
+          module_id?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -227,7 +227,7 @@ export type Database = {
           criteria?: Json | null
           id?: string
           kudos_messages?: Json | null
-          module_id?: string
+          module_id?: string | null
           status?: string
           updated_at?: string
           user_id?: string

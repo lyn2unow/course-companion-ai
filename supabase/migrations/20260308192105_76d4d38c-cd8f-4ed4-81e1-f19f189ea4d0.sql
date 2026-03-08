@@ -1,0 +1,1 @@
+ALTER TABLE public.discussion_analyses ALTER COLUMN module_id DROP NOT NULL;
