@@ -105,7 +105,7 @@ const GettingStartedBanner = ({ firstCourse, hasMaterials, hasContent, onDismiss
 const StepRow = ({ done, number, label, linked }: { done: boolean; number?: number; label: string; linked?: boolean }) => (
   <div className={`flex items-center gap-2 text-sm ${linked && !done ? "text-accent hover:underline" : ""}`}>
     {done ? (
-      <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+      <CheckCircle2 className="h-4 w-4 text-accent shrink-0" />
     ) : (
       <Circle className="h-4 w-4 text-muted-foreground shrink-0" />
     )}
