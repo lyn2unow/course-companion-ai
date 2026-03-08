@@ -97,8 +97,8 @@ const ContentCard = ({ content: item, onAutoSave, onToggleReviewed, onDelete, on
               <Badge variant="outline" className="text-xs">v{item.version}</Badge>
             )}
             {item.human_reviewed ? (
-              <Badge variant="secondary" className="text-xs gap-1">
-                <CheckCircle className="h-3 w-3" /> Reviewed
+              <Badge variant="outline" className="text-xs gap-1 bg-green-100 text-green-700 border-green-200">
+                <CheckCircle className="h-3 w-3" /> Reviewed ✓
               </Badge>
             ) : (
               <Badge className="text-xs bg-amber-500/15 text-amber-600 border-amber-500/30 hover:bg-amber-500/20">
