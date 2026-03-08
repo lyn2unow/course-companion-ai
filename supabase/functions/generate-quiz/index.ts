@@ -10,11 +10,19 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const startTime = Date.now();
+  let userId: string | null = null;
+  let courseId: string | null = null;
+  let moduleId: string | null = null;
+  let quizId: string | null = null;
+  let supabase: any = null;
+  const model = "google/gemini-2.5-pro";
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Missing authorization header");
 
-    const supabase = createClient(
+    supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
@@ -22,22 +30,24 @@ serve(async (req) => {
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("Unauthorized");
+    userId = user.id;
 
-    const { course_id, module_id, quiz_id, question_count, question_types, difficulty } = await req.json();
-    if (!course_id || !quiz_id || !question_count) throw new Error("Missing required fields: course_id, quiz_id, question_count");
+    const body = await req.json();
+    courseId = body.course_id;
+    moduleId = body.module_id;
+    quizId = body.quiz_id;
+    const { question_count, question_types, difficulty } = body;
+    if (!courseId || !quizId || !question_count) throw new Error("Missing required fields: course_id, quiz_id, question_count");
 
     // Fetch course
     const { data: course, error: courseErr } = await supabase
-      .from("courses")
-      .select("*")
-      .eq("id", course_id)
-      .single();
+      .from("courses").select("*").eq("id", courseId).single();
     if (courseErr || !course) throw new Error("Course not found");
 
     // Fetch module if provided
     let moduleContext = "";
-    if (module_id) {
-      const { data: mod } = await supabase.from("modules").select("*").eq("id", module_id).single();
+    if (moduleId) {
+      const { data: mod } = await supabase.from("modules").select("*").eq("id", moduleId).single();
       if (mod) {
         moduleContext = `\n## MODULE: ${mod.title}\n${mod.description ? `Description: ${mod.description}` : ""}`;
         const objectives = mod.learning_objectives as string[] | null;
@@ -47,21 +57,19 @@ serve(async (req) => {
       }
     }
 
-    // Fetch course materials ordered by hierarchy
+    // Fetch course materials
     const { data: materials } = await supabase
       .from("course_materials")
       .select("file_name, material_type, extracted_text")
-      .eq("course_id", course_id)
+      .eq("course_id", courseId)
       .not("extracted_text", "is", null);
 
-    // Build source materials context (5000 chars each, respect hierarchy)
     const sourceHierarchy = Array.isArray(course.source_hierarchy)
-      ? (course.source_hierarchy as string[])
-      : [];
+      ? (course.source_hierarchy as string[]) : [];
 
     let sortedMaterials = materials || [];
     if (sourceHierarchy.length > 0 && sortedMaterials.length > 0) {
-      sortedMaterials = [...sortedMaterials].sort((a, b) => {
+      sortedMaterials = [...sortedMaterials].sort((a: any, b: any) => {
         const aIdx = sourceHierarchy.indexOf(a.material_type);
         const bIdx = sourceHierarchy.indexOf(b.material_type);
         return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
@@ -71,8 +79,7 @@ serve(async (req) => {
     let materialsContext = "";
     for (const mat of sortedMaterials) {
       if (!mat.extracted_text) continue;
-      const chunk = mat.extracted_text.substring(0, 5000);
-      materialsContext += `\n\n--- Source: ${mat.file_name} (${mat.material_type}) ---\n${chunk}`;
+      materialsContext += `\n\n--- Source: ${mat.file_name} (${mat.material_type}) ---\n${mat.extracted_text.substring(0, 5000)}`;
     }
 
     const typesStr = (question_types || ["multiple_choice"]).join(", ");
@@ -126,19 +133,6 @@ CRITICAL: Return valid JSON only, no markdown, no preamble:
       "points": 1,
       "source_reference": "...",
       "difficulty": "${difficultyLevel}"
-    },
-    {
-      "question_type": "true_false",
-      "question_text": "...",
-      "answer_options": [
-        {"id": "A", "text": "True", "is_correct": true},
-        {"id": "B", "text": "False", "is_correct": false}
-      ],
-      "correct_answer": "A",
-      "explanation": "...",
-      "points": 1,
-      "source_reference": "...",
-      "difficulty": "foundational"
     }
   ]
 }`;
@@ -153,7 +147,7 @@ CRITICAL: Return valid JSON only, no markdown, no preamble:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -162,6 +156,16 @@ CRITICAL: Return valid JSON only, no markdown, no preamble:
     });
 
     if (!aiResponse.ok) {
+      const latencyMs = Date.now() - startTime;
+      const errText = await aiResponse.text();
+      if (supabase && userId) {
+        await supabase.from("ai_usage_log").insert({
+          user_id: userId, course_id: courseId, module_id: moduleId, quiz_id: quizId,
+          feature: "quiz_generation", model,
+          latency_ms: latencyMs, success: false,
+          error_message: `HTTP ${aiResponse.status}: ${errText.substring(0, 500)}`,
+        });
+      }
       if (aiResponse.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again shortly." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -172,7 +176,6 @@ CRITICAL: Return valid JSON only, no markdown, no preamble:
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const errText = await aiResponse.text();
       console.error("AI gateway error:", aiResponse.status, errText);
       throw new Error("AI generation failed");
     }
@@ -181,7 +184,20 @@ CRITICAL: Return valid JSON only, no markdown, no preamble:
     let content = aiData.choices?.[0]?.message?.content;
     if (!content) throw new Error("No content generated");
 
-    // Strip markdown code fences if present
+    const latencyMs = Date.now() - startTime;
+    const usage = aiData.usage;
+
+    // Log success
+    await supabase.from("ai_usage_log").insert({
+      user_id: userId, course_id: courseId, module_id: moduleId, quiz_id: quizId,
+      feature: "quiz_generation", model,
+      prompt_tokens: usage?.prompt_tokens ?? null,
+      completion_tokens: usage?.completion_tokens ?? null,
+      total_tokens: usage?.total_tokens ?? null,
+      latency_ms: latencyMs, success: true,
+    });
+
+    // Parse response
     content = content.trim();
     if (content.startsWith("```")) {
       content = content.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
@@ -191,10 +207,9 @@ CRITICAL: Return valid JSON only, no markdown, no preamble:
     const questions = parsed.questions;
     if (!Array.isArray(questions)) throw new Error("Invalid response format — expected questions array");
 
-    // Save questions to quiz_questions table
     const questionsToInsert = questions.map((q: any, i: number) => ({
-      quiz_id,
-      user_id: user.id,
+      quiz_id: quizId,
+      user_id: userId,
       question_text: q.question_text,
       question_type: q.question_type || "multiple_choice",
       options: q.answer_options || [],
@@ -204,21 +219,26 @@ CRITICAL: Return valid JSON only, no markdown, no preamble:
     }));
 
     const { data: savedQuestions, error: insertErr } = await supabase
-      .from("quiz_questions")
-      .insert(questionsToInsert)
-      .select("*");
+      .from("quiz_questions").insert(questionsToInsert).select("*");
     if (insertErr) throw new Error(`Failed to save questions: ${insertErr.message}`);
 
-    // Update quiz question_count
-    await supabase
-      .from("quizzes")
-      .update({ question_count: questions.length })
-      .eq("id", quiz_id);
+    await supabase.from("quizzes").update({ question_count: questions.length }).eq("id", quizId);
 
     return new Response(JSON.stringify({ questions: savedQuestions }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    const latencyMs = Date.now() - startTime;
+    if (supabase && userId) {
+      try {
+        await supabase.from("ai_usage_log").insert({
+          user_id: userId, course_id: courseId, module_id: moduleId, quiz_id: quizId,
+          feature: "quiz_generation", model,
+          latency_ms: latencyMs, success: false,
+          error_message: e instanceof Error ? e.message : "Unknown error",
+        });
+      } catch { /* don't fail on logging */ }
+    }
     console.error("generate-quiz error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),

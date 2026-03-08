@@ -10,11 +10,19 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const startTime = Date.now();
+  let userId: string | null = null;
+  let courseId: string | null = null;
+  let moduleId: string | null = null;
+  let contentType: string | null = null;
+  let supabase: any = null;
+  const model = "google/gemini-2.5-pro";
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Missing authorization header");
 
-    const supabase = createClient(
+    supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
@@ -22,8 +30,12 @@ serve(async (req) => {
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("Unauthorized");
+    userId = user.id;
 
-    const { moduleId, contentType, courseId } = await req.json();
+    const body = await req.json();
+    moduleId = body.moduleId;
+    contentType = body.contentType;
+    courseId = body.courseId;
     if (!moduleId || !contentType || !courseId) throw new Error("Missing required fields");
 
     // Fetch course and module data
@@ -58,7 +70,6 @@ serve(async (req) => {
       }
     }
 
-    // Build context-aware prompt
     const sourceHierarchy = Array.isArray(course.source_hierarchy)
       ? (course.source_hierarchy as string[]).join(", ")
       : "";
@@ -76,18 +87,10 @@ ${materialsContext ? `\n\n=== SOURCE MATERIALS ===\nUse the following source mat
 `.trim();
 
     const contentPrompts: Record<string, string> = {
-      lecture_notes: `Generate comprehensive, well-structured lecture notes for the following module. Include clear headings, key concepts, examples, and summary points. Format using markdown.
-
-${courseContext}`,
-      key_terms: `Extract and define 15-20 key terms and concepts for the following module. For each term, provide a clear, concise definition suitable for student study. Format as a markdown list with **bold** terms followed by their definitions.
-
-${courseContext}`,
-      discussion_prompt: `Create 3-5 thought-provoking discussion prompts for the following module. Each prompt should encourage critical thinking, application of concepts, and peer engagement. Include guidance on expected response length and evaluation criteria. Format using markdown.
-
-${courseContext}`,
-      reading_guide: `Create a comprehensive reading guide for the following module. Include: an overview of what students should focus on, key themes to look for, pre-reading questions to consider, and post-reading reflection prompts. Organize by sections or chapters if applicable. Format using markdown.
-
-${courseContext}`,
+      lecture_notes: `Generate comprehensive, well-structured lecture notes for the following module. Include clear headings, key concepts, examples, and summary points. Format using markdown.\n\n${courseContext}`,
+      key_terms: `Extract and define 15-20 key terms and concepts for the following module. For each term, provide a clear, concise definition suitable for student study. Format as a markdown list with **bold** terms followed by their definitions.\n\n${courseContext}`,
+      discussion_prompt: `Create 3-5 thought-provoking discussion prompts for the following module. Each prompt should encourage critical thinking, application of concepts, and peer engagement. Include guidance on expected response length and evaluation criteria. Format using markdown.\n\n${courseContext}`,
+      reading_guide: `Create a comprehensive reading guide for the following module. Include: an overview of what students should focus on, key themes to look for, pre-reading questions to consider, and post-reading reflection prompts. Organize by sections or chapters if applicable. Format using markdown.\n\n${courseContext}`,
     };
 
     const prompt = contentPrompts[contentType];
@@ -103,7 +106,7 @@ ${courseContext}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model,
         messages: [
           {
             role: "system",
@@ -116,19 +119,27 @@ ${courseContext}`,
     });
 
     if (!aiResponse.ok) {
+      const latencyMs = Date.now() - startTime;
+      const errText = await aiResponse.text();
+      // Log failure
+      if (supabase && userId) {
+        await supabase.from("ai_usage_log").insert({
+          user_id: userId, course_id: courseId, module_id: moduleId,
+          feature: "content_generation", content_type: contentType, model,
+          latency_ms: latencyMs, success: false,
+          error_message: `HTTP ${aiResponse.status}: ${errText.substring(0, 500)}`,
+        });
+      }
       if (aiResponse.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again shortly." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (aiResponse.status === 402) {
         return new Response(JSON.stringify({ error: "AI usage limit reached. Please add credits." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const errText = await aiResponse.text();
       console.error("AI gateway error:", aiResponse.status, errText);
       throw new Error("AI generation failed");
     }
@@ -137,10 +148,35 @@ ${courseContext}`,
     const content = aiData.choices?.[0]?.message?.content;
     if (!content) throw new Error("No content generated");
 
+    const latencyMs = Date.now() - startTime;
+    const usage = aiData.usage;
+
+    // Log success
+    await supabase.from("ai_usage_log").insert({
+      user_id: userId, course_id: courseId, module_id: moduleId,
+      feature: "content_generation", content_type: contentType, model,
+      prompt_tokens: usage?.prompt_tokens ?? null,
+      completion_tokens: usage?.completion_tokens ?? null,
+      total_tokens: usage?.total_tokens ?? null,
+      latency_ms: latencyMs, success: true,
+    });
+
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    const latencyMs = Date.now() - startTime;
+    // Log error
+    if (supabase && userId) {
+      try {
+        await supabase.from("ai_usage_log").insert({
+          user_id: userId, course_id: courseId, module_id: moduleId,
+          feature: "content_generation", content_type: contentType, model,
+          latency_ms: latencyMs, success: false,
+          error_message: e instanceof Error ? e.message : "Unknown error",
+        });
+      } catch { /* don't fail on logging */ }
+    }
     console.error("generate-content error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
