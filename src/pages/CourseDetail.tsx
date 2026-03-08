@@ -11,7 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ModuleCard from "@/components/modules/ModuleCard";
 import AddModuleDialog from "@/components/modules/AddModuleDialog";
 import MaterialsManager from "@/components/course-materials/MaterialsManager";
-import { Plus, BookOpen, FolderOpen, AlertCircle } from "lucide-react";
+import QuizList from "@/components/quizzes/QuizList";
+import CreateQuizDialog from "@/components/quizzes/CreateQuizDialog";
+import { Plus, BookOpen, FolderOpen, AlertCircle, FileQuestion } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import {
@@ -44,6 +46,8 @@ const CourseDetail = () => {
   const [showAddModule, setShowAddModule] = useState(false);
   const [deleteModuleId, setDeleteModuleId] = useState<string | null>(null);
   const [addingModule, setAddingModule] = useState(false);
+  const [showCreateQuiz, setShowCreateQuiz] = useState(false);
+  const [creatingQuiz, setCreatingQuiz] = useState(false);
 
   const { data: course, isLoading, isError } = useQuery({
     queryKey: ["course", id],
@@ -117,6 +121,78 @@ const CourseDetail = () => {
     queryClient.invalidateQueries({ queryKey: ["modules", id] });
   };
 
+  const handleCreateQuiz = async (params: {
+    title: string;
+    moduleId: string | null;
+    questionCount: number;
+    questionTypes: string[];
+    difficulty: string;
+  }) => {
+    if (!user || !id) return;
+    // Need at least one module for the quiz
+    const targetModuleId = params.moduleId ?? modules[0]?.id;
+    if (!targetModuleId) {
+      toast({ title: "Add a module first", variant: "destructive" });
+      return;
+    }
+    setCreatingQuiz(true);
+    try {
+      // Call generate-quiz edge function
+      const { data, error } = await supabase.functions.invoke("generate-quiz", {
+        body: {
+          courseId: id,
+          moduleId: targetModuleId,
+          title: params.title,
+          questionCount: params.questionCount,
+          questionTypes: params.questionTypes,
+          difficulty: params.difficulty,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // Create quiz record
+      const { data: quiz, error: quizErr } = await supabase
+        .from("quizzes")
+        .insert({
+          title: params.title,
+          module_id: targetModuleId,
+          user_id: user.id,
+          question_count: data.questions.length,
+          question_types: params.questionTypes,
+        })
+        .select("id")
+        .single();
+      if (quizErr) throw quizErr;
+
+      // Insert questions
+      const questionsToInsert = data.questions.map((q: any, i: number) => ({
+        quiz_id: quiz.id,
+        user_id: user.id,
+        question_text: q.question_text,
+        question_type: q.question_type || "multiple_choice",
+        options: q.options || [],
+        correct_answer: q.correct_answer,
+        explanation: q.explanation || null,
+        sort_order: i,
+      }));
+
+      const { error: insertErr } = await supabase.from("quiz_questions").insert(questionsToInsert);
+      if (insertErr) throw insertErr;
+
+      queryClient.invalidateQueries({ queryKey: ["quizzes", id] });
+      setShowCreateQuiz(false);
+      toast({ title: "Quiz generated successfully" });
+
+      // Navigate to quiz detail
+      window.location.href = `/courses/${id}/quizzes/${quiz.id}`;
+    } catch (e: any) {
+      toast({ title: "Quiz generation failed", description: e.message, variant: "destructive" });
+    } finally {
+      setCreatingQuiz(false);
+    }
+  };
+
   const sourceHierarchy = Array.isArray(course?.source_hierarchy)
     ? (course.source_hierarchy as string[])
     : [];
@@ -170,12 +246,15 @@ const CourseDetail = () => {
                 )}
 
                 <Tabs defaultValue="modules" className="mt-8">
-                  <TabsList className="grid w-full grid-cols-2 max-w-xs">
+                  <TabsList className="grid w-full grid-cols-3 max-w-sm">
                     <TabsTrigger value="modules" className="gap-2">
                       <BookOpen className="h-4 w-4" /> Modules
                     </TabsTrigger>
                     <TabsTrigger value="materials" className="gap-2">
                       <FolderOpen className="h-4 w-4" /> Materials
+                    </TabsTrigger>
+                    <TabsTrigger value="quizzes" className="gap-2">
+                      <FileQuestion className="h-4 w-4" /> Quizzes
                     </TabsTrigger>
                   </TabsList>
 
@@ -219,6 +298,14 @@ const CourseDetail = () => {
                     </div>
                     <MaterialsManager courseId={id!} />
                   </TabsContent>
+
+                  <TabsContent value="quizzes">
+                    <QuizList
+                      courseId={id!}
+                      modules={modules}
+                      onCreateQuiz={() => setShowCreateQuiz(true)}
+                    />
+                  </TabsContent>
                 </Tabs>
               </>
             ) : (!course || isError) ? (
@@ -241,6 +328,14 @@ const CourseDetail = () => {
           onOpenChange={setShowAddModule}
           onSubmit={handleAddModule}
           isLoading={addingModule}
+        />
+
+        <CreateQuizDialog
+          open={showCreateQuiz}
+          onOpenChange={setShowCreateQuiz}
+          modules={modules}
+          onSubmit={handleCreateQuiz}
+          isLoading={creatingQuiz}
         />
 
         <AlertDialog open={!!deleteModuleId} onOpenChange={(open) => !open && setDeleteModuleId(null)}>
