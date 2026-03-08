@@ -6,6 +6,7 @@ import AppHeader from "@/components/layout/AppHeader";
 import PageContainer from "@/components/layout/PageContainer";
 import PageTransition from "@/components/layout/PageTransition";
 import QuestionCard from "@/components/quizzes/QuestionCard";
+import ExportQuizDialog from "@/components/quizzes/ExportQuizDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,17 +20,6 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-const EXPORT_FORMATS = [
-  { value: "csv", label: "CSV (Universal)", ext: "csv" },
-  { value: "qti_canvas", label: "QTI — Canvas", ext: "zip" },
-  { value: "qti_blackboard", label: "QTI — Blackboard", ext: "zip" },
-  { value: "qti_brightspace", label: "QTI — Brightspace", ext: "zip" },
-  { value: "gift_moodle", label: "GIFT — Moodle", ext: "txt" },
-] as const;
 
 const QuizDetail = () => {
   const { courseId, quizId } = useParams<{ courseId: string; quizId: string }>();
