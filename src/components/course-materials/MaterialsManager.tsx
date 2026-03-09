@@ -50,6 +50,8 @@ const MaterialsManager = ({ courseId, sourceHierarchy = [] }: MaterialsManagerPr
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteSaving, setPasteSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [batchExtracting, setBatchExtracting] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
 
   const { data: materials = [] } = useQuery({
     queryKey: ["course_materials", courseId],
