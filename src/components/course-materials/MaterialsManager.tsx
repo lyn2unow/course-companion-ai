@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Upload, ClipboardPaste } from "lucide-react";
+import { Upload, ClipboardPaste, RotateCw } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import MaterialsList from "./MaterialsList";
 import PasteContentDialog from "./PasteContentDialog";
 
