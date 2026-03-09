@@ -164,10 +164,33 @@ const MaterialsManager = ({ courseId, sourceHierarchy = [] }: MaterialsManagerPr
 
   const handleReExtract = async (storagePath: string, cId: string) => {
     await supabase.functions.invoke("parse-content", { body: { storagePath, courseId: cId } });
-    // Give the function a moment then refresh
     setTimeout(() => {
       queryClient.invalidateQueries({ queryKey: ["course_materials", courseId] });
     }, 2000);
+  };
+
+  const needsExtraction = materials.filter((m) => {
+    if (!m.extracted_text) return true;
+    const t = m.extracted_text;
+    return t.startsWith("[SCANNED PDF") || t.startsWith("[Unable") || t.startsWith("[Failed") || t.startsWith("[PDF text") || t.startsWith("[DOCX extraction") || t.startsWith("[Spreadsheet") || t.startsWith("[QTI extraction");
+  });
+
+  const handleBatchReExtract = async () => {
+    if (needsExtraction.length === 0) return;
+    setBatchExtracting(true);
+    setBatchProgress({ done: 0, total: needsExtraction.length });
+    for (let i = 0; i < needsExtraction.length; i++) {
+      const m = needsExtraction[i];
+      try {
+        await supabase.functions.invoke("parse-content", { body: { storagePath: m.storage_path, courseId } });
+      } catch (err) {
+        console.error("Batch re-extract failed for", m.file_name, err);
+      }
+      setBatchProgress({ done: i + 1, total: needsExtraction.length });
+    }
+    setBatchExtracting(false);
+    queryClient.invalidateQueries({ queryKey: ["course_materials", courseId] });
+    toast({ title: "Batch re-extraction complete", description: `Processed ${needsExtraction.length} file(s)` });
   };
 
   return (
