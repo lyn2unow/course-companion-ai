@@ -194,7 +194,7 @@ const MaterialsManager = ({ courseId, sourceHierarchy = [] }: MaterialsManagerPr
         Supported: PDF, DOCX, TXT, XLS/XLSX, QTI (.zip). Max 20MB per file.
       </p>
 
-      <MaterialsList materials={materials} onDelete={handleDelete} isDeleting={deletingId} />
+      <MaterialsList materials={materials} materialTypes={materialTypes} onDelete={handleDelete} onUpdateType={handleUpdateType} isDeleting={deletingId} />
 
       <PasteContentDialog open={pasteOpen} onOpenChange={setPasteOpen} onSubmit={handlePasteSubmit} isLoading={pasteSaving} />
     </div>

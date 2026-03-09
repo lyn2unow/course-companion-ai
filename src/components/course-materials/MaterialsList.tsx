@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Trash2, FileText, CheckCircle2, Clock } from "lucide-react";
 import { format } from "date-fns";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 interface Material {
   id: string;
@@ -15,7 +18,9 @@ interface Material {
 
 interface MaterialsListProps {
   materials: Material[];
+  materialTypes: { value: string; label: string }[];
   onDelete: (id: string) => void;
+  onUpdateType: (id: string, newType: string) => void;
   isDeleting?: string | null;
 }
 
@@ -26,16 +31,9 @@ const formatSize = (bytes: number | null) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const typeLabels: Record<string, string> = {
-  syllabus: "Syllabus",
-  lecture_notes: "Lecture Notes",
-  textbook: "Textbook",
-  quiz_bank: "Quiz Bank",
-  spreadsheet: "Spreadsheet",
-  other: "Other",
-};
+const MaterialsList = ({ materials, materialTypes, onDelete, onUpdateType, isDeleting }: MaterialsListProps) => {
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-const MaterialsList = ({ materials, onDelete, isDeleting }: MaterialsListProps) => {
   if (materials.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -45,16 +43,34 @@ const MaterialsList = ({ materials, onDelete, isDeleting }: MaterialsListProps) 
     );
   }
 
+  const handleTypeChange = async (id: string, newType: string) => {
+    setUpdatingId(id);
+    await onUpdateType(id, newType);
+    setUpdatingId(null);
+  };
+
+  const getLabel = (value: string) =>
+    materialTypes.find((t) => t.value === value)?.label ?? value;
+
   return (
     <div className="space-y-2">
       {materials.map((m) => (
-        <div key={m.id} className="flex items-center justify-between p-3 rounded-lg border bg-card">
+        <div key={m.id} className={`flex items-center justify-between p-3 rounded-lg border bg-card ${updatingId === m.id ? "opacity-60" : ""}`}>
           <div className="flex items-center gap-3 min-w-0">
             <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
             <div className="min-w-0">
               <p className="text-sm font-medium truncate">{m.file_name}</p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="secondary" className="text-xs">{typeLabels[m.material_type] ?? m.material_type}</Badge>
+                <Select value={m.material_type} onValueChange={(v) => handleTypeChange(m.id, v)}>
+                  <SelectTrigger className="h-5 w-auto gap-1 border-none bg-secondary text-secondary-foreground rounded-full px-2 py-0 text-xs font-semibold hover:bg-secondary/80 focus:ring-0 focus:ring-offset-0">
+                    <SelectValue>{getLabel(m.material_type)}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {materialTypes.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {m.file_size ? <span>{formatSize(m.file_size)}</span> : null}
                 <span>{format(new Date(m.created_at), "MMM d, yyyy")}</span>
               </div>
