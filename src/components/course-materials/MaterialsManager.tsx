@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Upload, ClipboardPaste } from "lucide-react";
+import { Upload, ClipboardPaste, RotateCw } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import MaterialsList from "./MaterialsList";
 import PasteContentDialog from "./PasteContentDialog";
 
@@ -49,6 +50,8 @@ const MaterialsManager = ({ courseId, sourceHierarchy = [] }: MaterialsManagerPr
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteSaving, setPasteSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [batchExtracting, setBatchExtracting] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
 
   const { data: materials = [] } = useQuery({
     queryKey: ["course_materials", courseId],
@@ -161,10 +164,33 @@ const MaterialsManager = ({ courseId, sourceHierarchy = [] }: MaterialsManagerPr
 
   const handleReExtract = async (storagePath: string, cId: string) => {
     await supabase.functions.invoke("parse-content", { body: { storagePath, courseId: cId } });
-    // Give the function a moment then refresh
     setTimeout(() => {
       queryClient.invalidateQueries({ queryKey: ["course_materials", courseId] });
     }, 2000);
+  };
+
+  const needsExtraction = materials.filter((m) => {
+    if (!m.extracted_text) return true;
+    const t = m.extracted_text;
+    return t.startsWith("[SCANNED PDF") || t.startsWith("[Unable") || t.startsWith("[Failed") || t.startsWith("[PDF text") || t.startsWith("[DOCX extraction") || t.startsWith("[Spreadsheet") || t.startsWith("[QTI extraction");
+  });
+
+  const handleBatchReExtract = async () => {
+    if (needsExtraction.length === 0) return;
+    setBatchExtracting(true);
+    setBatchProgress({ done: 0, total: needsExtraction.length });
+    for (let i = 0; i < needsExtraction.length; i++) {
+      const m = needsExtraction[i];
+      try {
+        await supabase.functions.invoke("parse-content", { body: { storagePath: m.storage_path, courseId } });
+      } catch (err) {
+        console.error("Batch re-extract failed for", m.file_name, err);
+      }
+      setBatchProgress({ done: i + 1, total: needsExtraction.length });
+    }
+    setBatchExtracting(false);
+    queryClient.invalidateQueries({ queryKey: ["course_materials", courseId] });
+    toast({ title: "Batch re-extraction complete", description: `Processed ${needsExtraction.length} file(s)` });
   };
 
   return (
@@ -193,10 +219,26 @@ const MaterialsManager = ({ courseId, sourceHierarchy = [] }: MaterialsManagerPr
             className="w-auto"
           />
         </div>
-        <Button variant="outline" onClick={() => setPasteOpen(true)} disabled={uploading}>
+        <Button variant="outline" onClick={() => setPasteOpen(true)} disabled={uploading || batchExtracting}>
           <ClipboardPaste className="h-4 w-4 mr-2" /> Paste Content
         </Button>
+        {materials.length > 0 && needsExtraction.length > 0 && (
+          <Button variant="outline" onClick={handleBatchReExtract} disabled={uploading || batchExtracting}>
+            <RotateCw className={`h-4 w-4 mr-2 ${batchExtracting ? "animate-spin" : ""}`} />
+            Re-extract all ({needsExtraction.length})
+          </Button>
+        )}
       </div>
+
+      {batchExtracting && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Processing {batchProgress.done} of {batchProgress.total}…</span>
+            <span>{Math.round((batchProgress.done / batchProgress.total) * 100)}%</span>
+          </div>
+          <Progress value={(batchProgress.done / batchProgress.total) * 100} className="h-2" />
+        </div>
+      )}
 
       <p className="text-xs text-muted-foreground">
         Supported: PDF, DOCX, TXT, XLS/XLSX, QTI (.zip). Max 20MB per file.
