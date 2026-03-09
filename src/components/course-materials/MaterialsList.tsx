@@ -57,14 +57,21 @@ const MaterialsList = ({ materials, materialTypes, onDelete, onUpdateType, isDel
   return (
     <div className="space-y-2">
       {materials.map((m) => (
-        <div key={m.id} className={`flex items-center justify-between p-3 rounded-lg border bg-card ${updatingId === m.id ? "opacity-60" : ""}`}>
+        <div
+          key={m.id}
+          className={`flex items-center justify-between p-3 rounded-lg border bg-card cursor-pointer transition-colors hover:bg-muted/50 ${updatingId === m.id ? "opacity-60" : ""}`}
+          onClick={() => setPreviewMaterial(m)}
+        >
           <div className="flex items-center gap-3 min-w-0">
             <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
             <div className="min-w-0">
               <p className="text-sm font-medium truncate">{m.file_name}</p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Select value={m.material_type} onValueChange={(v) => handleTypeChange(m.id, v)}>
-                  <SelectTrigger className="h-5 w-auto gap-1 border-none bg-secondary text-secondary-foreground rounded-full px-2 py-0 text-xs font-semibold hover:bg-secondary/80 focus:ring-0 focus:ring-offset-0">
+                  <SelectTrigger
+                    className="h-5 w-auto gap-1 border-none bg-secondary text-secondary-foreground rounded-full px-2 py-0 text-xs font-semibold hover:bg-secondary/80 focus:ring-0 focus:ring-offset-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <SelectValue>{getLabel(m.material_type)}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -84,12 +91,37 @@ const MaterialsList = ({ materials, materialTypes, onDelete, onUpdateType, isDel
             ) : (
               <Clock className="h-4 w-4 text-muted-foreground" aria-label="Processing" />
             )}
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onDelete(m.id)} disabled={isDeleting === m.id} aria-label="Delete material">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={(e) => { e.stopPropagation(); setPreviewMaterial(m); }}
+              aria-label="Preview material"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive"
+              onClick={(e) => { e.stopPropagation(); onDelete(m.id); }}
+              disabled={isDeleting === m.id}
+              aria-label="Delete material"
+            >
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         </div>
       ))}
+
+      <MaterialPreviewPanel
+        material={previewMaterial}
+        open={!!previewMaterial}
+        onOpenChange={(open) => { if (!open) setPreviewMaterial(null); }}
+        materialTypes={materialTypes}
+        onUpdateType={onUpdateType}
+        onDelete={onDelete}
+      />
     </div>
   );
 };
