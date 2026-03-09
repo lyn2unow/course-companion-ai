@@ -130,6 +130,17 @@ const MaterialsManager = ({ courseId, sourceHierarchy = [] }: MaterialsManagerPr
     }
   };
 
+  const handleUpdateType = async (id: string, newType: string) => {
+    try {
+      const { error } = await supabase.from("course_materials").update({ material_type: newType }).eq("id", id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["course_materials", courseId] });
+      toast({ title: "Material type updated" });
+    } catch (err: any) {
+      toast({ title: "Update failed", description: err.message, variant: "destructive" });
+    }
+  };
+
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
@@ -183,7 +194,7 @@ const MaterialsManager = ({ courseId, sourceHierarchy = [] }: MaterialsManagerPr
         Supported: PDF, DOCX, TXT, XLS/XLSX, QTI (.zip). Max 20MB per file.
       </p>
 
-      <MaterialsList materials={materials} onDelete={handleDelete} isDeleting={deletingId} />
+      <MaterialsList materials={materials} materialTypes={materialTypes} onDelete={handleDelete} onUpdateType={handleUpdateType} isDeleting={deletingId} />
 
       <PasteContentDialog open={pasteOpen} onOpenChange={setPasteOpen} onSubmit={handlePasteSubmit} isLoading={pasteSaving} />
     </div>
