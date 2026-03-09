@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Trash2, FileText, CheckCircle2, Clock } from "lucide-react";
+import { Trash2, FileText, CheckCircle2, Clock, Eye } from "lucide-react";
 import { format } from "date-fns";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import MaterialPreviewPanel from "./MaterialPreviewPanel";
 
 interface Material {
   id: string;
