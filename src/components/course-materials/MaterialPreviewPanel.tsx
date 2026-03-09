@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { X, Copy, Maximize2, Trash2 } from "lucide-react";
+import { X, Copy, Maximize2, Trash2, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -28,6 +28,7 @@ interface Material {
   file_size: number | null;
   created_at: string;
   extracted_text: string | null;
+  storage_path: string;
 }
 
 interface MaterialPreviewPanelProps {
@@ -37,6 +38,8 @@ interface MaterialPreviewPanelProps {
   materialTypes: { value: string; label: string }[];
   onUpdateType: (id: string, newType: string) => void;
   onDelete: (id: string) => void;
+  onReExtract?: (storagePath: string, courseId: string) => Promise<void>;
+  courseId?: string;
 }
 
 const formatSize = (bytes: number | null) => {
@@ -47,10 +50,11 @@ const formatSize = (bytes: number | null) => {
 };
 
 const MaterialPreviewPanel = ({
-  material, open, onOpenChange, materialTypes, onUpdateType, onDelete,
+  material, open, onOpenChange, materialTypes, onUpdateType, onDelete, onReExtract, courseId,
 }: MaterialPreviewPanelProps) => {
   const { toast } = useToast();
   const [fullView, setFullView] = useState(false);
+  const [reExtracting, setReExtracting] = useState(false);
 
   if (!material) return null;
 
@@ -66,6 +70,19 @@ const MaterialPreviewPanel = ({
   const handleDelete = () => {
     onDelete(material.id);
     onOpenChange(false);
+  };
+
+  const handleReExtract = async () => {
+    if (!onReExtract || !courseId) return;
+    setReExtracting(true);
+    try {
+      await onReExtract(material.storage_path, courseId);
+      toast({ title: "Re-extraction triggered", description: "Text will be updated shortly." });
+    } catch {
+      toast({ title: "Re-extraction failed", variant: "destructive" });
+    } finally {
+      setReExtracting(false);
+    }
   };
 
   return (
@@ -114,6 +131,12 @@ const MaterialPreviewPanel = ({
                   <Copy className="h-4 w-4 mr-1" /> Copy text
                 </Button>
               </>
+            )}
+
+            {onReExtract && courseId && (
+              <Button variant="outline" size="sm" onClick={handleReExtract} disabled={reExtracting}>
+                <RotateCw className={`h-4 w-4 mr-1 ${reExtracting ? "animate-spin" : ""}`} /> Re-extract
+              </Button>
             )}
 
             <Select value={material.material_type} onValueChange={(v) => onUpdateType(material.id, v)}>

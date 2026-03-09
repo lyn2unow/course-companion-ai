@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Trash2, FileText, CheckCircle2, Clock, Eye } from "lucide-react";
+import { Trash2, FileText, Eye } from "lucide-react";
 import { format } from "date-fns";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -15,6 +15,7 @@ interface Material {
   file_size: number | null;
   created_at: string;
   extracted_text: string | null;
+  storage_path: string;
 }
 
 interface MaterialsListProps {
@@ -22,6 +23,8 @@ interface MaterialsListProps {
   materialTypes: { value: string; label: string }[];
   onDelete: (id: string) => void;
   onUpdateType: (id: string, newType: string) => void;
+  onReExtract?: (storagePath: string, courseId: string) => Promise<void>;
+  courseId: string;
   isDeleting?: string | null;
 }
 
@@ -32,7 +35,34 @@ const formatSize = (bytes: number | null) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const MaterialsList = ({ materials, materialTypes, onDelete, onUpdateType, isDeleting }: MaterialsListProps) => {
+/** Extraction status dot */
+const ExtractionDot = ({ text }: { text: string | null }) => {
+  if (!text) {
+    // Gray = not yet processed
+    return (
+      <span className="relative flex h-2.5 w-2.5" title="Not yet processed">
+        <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground/40" />
+      </span>
+    );
+  }
+  const isScanned = text.startsWith("[SCANNED PDF") || text.startsWith("[Unable") || text.startsWith("[Failed") || text.startsWith("[PDF text") || text.startsWith("[DOCX extraction") || text.startsWith("[Spreadsheet") || text.startsWith("[QTI extraction");
+  if (isScanned) {
+    // Yellow = scanned / no usable text
+    return (
+      <span className="relative flex h-2.5 w-2.5" title="Scanned/no text extracted">
+        <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
+      </span>
+    );
+  }
+  // Green = extracted successfully
+  return (
+    <span className="relative flex h-2.5 w-2.5" title="Text extracted">
+      <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+    </span>
+  );
+};
+
+const MaterialsList = ({ materials, materialTypes, onDelete, onUpdateType, onReExtract, courseId, isDeleting }: MaterialsListProps) => {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [previewMaterial, setPreviewMaterial] = useState<Material | null>(null);
 
@@ -86,11 +116,7 @@ const MaterialsList = ({ materials, materialTypes, onDelete, onUpdateType, isDel
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {m.extracted_text ? (
-              <CheckCircle2 className="h-4 w-4 text-accent" aria-label="Text extracted" />
-            ) : (
-              <Clock className="h-4 w-4 text-muted-foreground" aria-label="Processing" />
-            )}
+            <ExtractionDot text={m.extracted_text} />
             <Button
               variant="ghost"
               size="icon"
@@ -121,6 +147,8 @@ const MaterialsList = ({ materials, materialTypes, onDelete, onUpdateType, isDel
         materialTypes={materialTypes}
         onUpdateType={onUpdateType}
         onDelete={onDelete}
+        onReExtract={onReExtract}
+        courseId={courseId}
       />
     </div>
   );
