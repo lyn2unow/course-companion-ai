@@ -130,6 +130,17 @@ const MaterialsManager = ({ courseId, sourceHierarchy = [] }: MaterialsManagerPr
     }
   };
 
+  const handleUpdateType = async (id: string, newType: string) => {
+    try {
+      const { error } = await supabase.from("course_materials").update({ material_type: newType }).eq("id", id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["course_materials", courseId] });
+      toast({ title: "Material type updated" });
+    } catch (err: any) {
+      toast({ title: "Update failed", description: err.message, variant: "destructive" });
+    }
+  };
+
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
