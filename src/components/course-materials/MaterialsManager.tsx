@@ -219,10 +219,26 @@ const MaterialsManager = ({ courseId, sourceHierarchy = [] }: MaterialsManagerPr
             className="w-auto"
           />
         </div>
-        <Button variant="outline" onClick={() => setPasteOpen(true)} disabled={uploading}>
+        <Button variant="outline" onClick={() => setPasteOpen(true)} disabled={uploading || batchExtracting}>
           <ClipboardPaste className="h-4 w-4 mr-2" /> Paste Content
         </Button>
+        {materials.length > 0 && needsExtraction.length > 0 && (
+          <Button variant="outline" onClick={handleBatchReExtract} disabled={uploading || batchExtracting}>
+            <RotateCw className={`h-4 w-4 mr-2 ${batchExtracting ? "animate-spin" : ""}`} />
+            Re-extract all ({needsExtraction.length})
+          </Button>
+        )}
       </div>
+
+      {batchExtracting && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Processing {batchProgress.done} of {batchProgress.total}…</span>
+            <span>{Math.round((batchProgress.done / batchProgress.total) * 100)}%</span>
+          </div>
+          <Progress value={(batchProgress.done / batchProgress.total) * 100} className="h-2" />
+        </div>
+      )}
 
       <p className="text-xs text-muted-foreground">
         Supported: PDF, DOCX, TXT, XLS/XLSX, QTI (.zip). Max 20MB per file.
