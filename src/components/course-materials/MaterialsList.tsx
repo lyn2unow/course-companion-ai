@@ -34,6 +34,7 @@ const formatSize = (bytes: number | null) => {
 
 const MaterialsList = ({ materials, materialTypes, onDelete, onUpdateType, isDeleting }: MaterialsListProps) => {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [previewMaterial, setPreviewMaterial] = useState<Material | null>(null);
 
   if (materials.length === 0) {
     return (
