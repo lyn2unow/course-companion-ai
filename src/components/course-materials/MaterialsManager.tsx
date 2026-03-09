@@ -159,6 +159,14 @@ const MaterialsManager = ({ courseId, sourceHierarchy = [] }: MaterialsManagerPr
     }
   };
 
+  const handleReExtract = async (storagePath: string, cId: string) => {
+    await supabase.functions.invoke("parse-content", { body: { storagePath, courseId: cId } });
+    // Give the function a moment then refresh
+    setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ["course_materials", courseId] });
+    }, 2000);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end gap-3">
@@ -194,7 +202,7 @@ const MaterialsManager = ({ courseId, sourceHierarchy = [] }: MaterialsManagerPr
         Supported: PDF, DOCX, TXT, XLS/XLSX, QTI (.zip). Max 20MB per file.
       </p>
 
-      <MaterialsList materials={materials} materialTypes={materialTypes} onDelete={handleDelete} onUpdateType={handleUpdateType} isDeleting={deletingId} />
+      <MaterialsList materials={materials} materialTypes={materialTypes} onDelete={handleDelete} onUpdateType={handleUpdateType} onReExtract={handleReExtract} courseId={courseId} isDeleting={deletingId} />
 
       <PasteContentDialog open={pasteOpen} onOpenChange={setPasteOpen} onSubmit={handlePasteSubmit} isLoading={pasteSaving} />
     </div>

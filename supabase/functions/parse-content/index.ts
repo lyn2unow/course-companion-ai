@@ -31,30 +31,36 @@ serve(async (req) => {
     const { storagePath, courseId } = await req.json();
     if (!storagePath || !courseId) throw new Error("Missing storagePath or courseId");
 
+    console.log(`[parse-content] Processing: ${storagePath}`);
+
     // Download the file from storage using admin client
     const { data: fileData, error: downloadError } = await supabaseAdmin.storage
       .from("course-materials")
       .download(storagePath);
-    if (downloadError || !fileData) throw new Error("Failed to download file");
+    if (downloadError || !fileData) {
+      console.error("Download error:", downloadError);
+      throw new Error("Failed to download file: " + (downloadError?.message || "unknown"));
+    }
+
+    console.log(`[parse-content] Downloaded file, size: ${fileData.size} bytes`);
 
     const fileName = storagePath.split("/").pop()?.toLowerCase() || "";
     let extractedText = "";
 
     if (fileName.endsWith(".txt")) {
       extractedText = await fileData.text();
+      console.log(`[parse-content] TXT extracted, length: ${extractedText.length}`);
     } else if (fileName.endsWith(".pdf")) {
-      // For PDF, extract basic text - the AI can work with raw text extraction
-      const bytes = new Uint8Array(await fileData.arrayBuffer());
-      extractedText = extractTextFromPdfBytes(bytes);
+      extractedText = await extractTextFromPdf(fileData);
+      console.log(`[parse-content] PDF extracted, length: ${extractedText.length}`);
     } else if (fileName.endsWith(".docx") || fileName.endsWith(".doc")) {
-      // Extract text from DOCX (XML-based)
       extractedText = await extractTextFromDocx(fileData);
+      console.log(`[parse-content] DOCX extracted, length: ${extractedText.length}`);
     } else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
       extractedText = await extractTextFromSpreadsheet(fileData);
     } else if (fileName.endsWith(".zip") || fileName.endsWith(".qti")) {
       extractedText = await extractTextFromQti(fileData);
     } else {
-      // Try to read as text
       try {
         extractedText = await fileData.text();
       } catch {
@@ -79,6 +85,8 @@ serve(async (req) => {
       throw new Error("Failed to save extracted text");
     }
 
+    console.log(`[parse-content] Successfully saved extracted text, length: ${extractedText.length}`);
+
     return new Response(JSON.stringify({ success: true, length: extractedText.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -91,128 +99,293 @@ serve(async (req) => {
   }
 });
 
-// Simple PDF text extraction - pulls text between stream markers
-function extractTextFromPdfBytes(bytes: Uint8Array): string {
-  // Simple approach: decode the bytes and find readable text content
+// ─── PDF Text Extraction ───────────────────────────────────────
+// Uses multiple strategies to extract text from PDF files
+async function extractTextFromPdf(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
   const decoder = new TextDecoder("latin1");
   const raw = decoder.decode(bytes);
-  
-  // Extract text between parentheses (PDF text objects) and BT/ET markers
+
   const textParts: string[] = [];
-  
-  // Method 1: Extract text from Tj and TJ operators
+
+  // Strategy 1: Extract text from Tj operator (single string)
   const tjRegex = /\(([^)]*)\)\s*Tj/g;
   let match;
   while ((match = tjRegex.exec(raw)) !== null) {
-    textParts.push(match[1]);
+    const cleaned = decodePdfString(match[1]);
+    if (cleaned.trim()) textParts.push(cleaned);
   }
-  
-  // Method 2: Extract from TJ arrays
-  const tjArrayRegex = /\[([^\]]*)\]\s*TJ/g;
+
+  // Strategy 2: Extract from TJ arrays (multiple strings with kerning)
+  const tjArrayRegex = /\[([^\]]*)\]\s*TJ/gi;
   while ((match = tjArrayRegex.exec(raw)) !== null) {
     const inner = match[1];
     const parts = inner.match(/\(([^)]*)\)/g);
     if (parts) {
-      textParts.push(parts.map(p => p.slice(1, -1)).join(""));
+      const combined = parts.map(p => decodePdfString(p.slice(1, -1))).join("");
+      if (combined.trim()) textParts.push(combined);
+    }
+  }
+
+  // Strategy 3: Look for text in stream blocks using different encodings
+  if (textParts.length < 5) {
+    // Try to find FlateDecode streams and decompress them
+    const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+    while ((match = streamRegex.exec(raw)) !== null) {
+      try {
+        const streamBytes = new Uint8Array(
+          match[1].split("").map(c => c.charCodeAt(0))
+        );
+        // Try to decompress
+        const ds = new DecompressionStream("deflate");
+        const writer = ds.writable.getWriter();
+        writer.write(streamBytes);
+        writer.close();
+        const reader = ds.readable.getReader();
+        const chunks: Uint8Array[] = [];
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value) chunks.push(value);
+        }
+        const decompressed = new Uint8Array(chunks.reduce((a, c) => a + c.length, 0));
+        let offset = 0;
+        for (const chunk of chunks) {
+          decompressed.set(chunk, offset);
+          offset += chunk.length;
+        }
+        const decompressedText = new TextDecoder("latin1").decode(decompressed);
+
+        // Extract text operators from decompressed stream
+        const innerTj = /\(([^)]*)\)\s*Tj/g;
+        let innerMatch;
+        while ((innerMatch = innerTj.exec(decompressedText)) !== null) {
+          const cleaned = decodePdfString(innerMatch[1]);
+          if (cleaned.trim()) textParts.push(cleaned);
+        }
+        const innerTJArray = /\[([^\]]*)\]\s*TJ/gi;
+        while ((innerMatch = innerTJArray.exec(decompressedText)) !== null) {
+          const inner2 = innerMatch[1];
+          const parts2 = inner2.match(/\(([^)]*)\)/g);
+          if (parts2) {
+            const combined = parts2.map(p => decodePdfString(p.slice(1, -1))).join("");
+            if (combined.trim()) textParts.push(combined);
+          }
+        }
+      } catch {
+        // Decompression failed, skip this stream
+      }
     }
   }
 
   if (textParts.length === 0) {
-    return "[PDF text extraction returned no content. The PDF may contain scanned images. Please paste the content manually.]";
+    return "[SCANNED PDF - Please use Paste Content to add text manually]";
   }
 
-  // Clean up PDF escape sequences
+  // Join with spaces and clean up
   return textParts
     .join(" ")
-    .replace(/\\n/g, "\n")
-    .replace(/\\r/g, "")
-    .replace(/\\\(/g, "(")
-    .replace(/\\\)/g, ")")
-    .replace(/\\\\/g, "\\")
+    .replace(/\s+/g, " ")
+    .replace(/(\.\s)/g, ".\n")
     .trim();
 }
 
+function decodePdfString(s: string): string {
+  return s
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\r")
+    .replace(/\\t/g, "\t")
+    .replace(/\\\(/g, "(")
+    .replace(/\\\)/g, ")")
+    .replace(/\\\\/g, "\\")
+    .replace(/\\(\d{3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)));
+}
+
+// ─── DOCX Text Extraction ─────────────────────────────────────
+// DOCX files are ZIP archives containing XML. We decompress and parse.
 async function extractTextFromDocx(blob: Blob): Promise<string> {
   try {
-    // DOCX is a ZIP containing XML files. We'll look for word/document.xml
-    // Simple approach: read as text and extract content between <w:t> tags
     const arrayBuffer = await blob.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
-    
-    // Find the document.xml content within the ZIP
-    const decoder = new TextDecoder("utf-8", { fatal: false });
-    const raw = decoder.decode(bytes);
-    
-    // Extract text from w:t tags
-    const textParts: string[] = [];
-    const regex = /<w:t[^>]*>([^<]*)<\/w:t>/g;
-    let match;
-    while ((match = regex.exec(raw)) !== null) {
-      textParts.push(match[1]);
+
+    // DOCX is a ZIP file. Find and extract document.xml
+    const xmlContent = await extractFileFromZip(bytes, "word/document.xml");
+
+    if (!xmlContent) {
+      // Fallback: try raw decode
+      const decoder = new TextDecoder("utf-8", { fatal: false });
+      const raw = decoder.decode(bytes);
+      const textParts: string[] = [];
+      const regex = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+      let match;
+      while ((match = regex.exec(raw)) !== null) {
+        textParts.push(match[1]);
+      }
+      if (textParts.length === 0) {
+        return "[DOCX extraction found no text. Please try pasting content manually.]";
+      }
+      return textParts.join(" ").trim();
     }
-    
+
+    // Parse w:t tags from the XML, preserving paragraph breaks
+    const textParts: string[] = [];
+    // Split by paragraph markers
+    const paragraphs = xmlContent.split(/<\/w:p>/gi);
+    for (const para of paragraphs) {
+      const paraTexts: string[] = [];
+      const regex = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+      let match;
+      while ((match = regex.exec(para)) !== null) {
+        paraTexts.push(match[1]);
+      }
+      if (paraTexts.length > 0) {
+        textParts.push(paraTexts.join(""));
+      }
+    }
+
     if (textParts.length === 0) {
       return "[DOCX extraction found no text. Please try pasting content manually.]";
     }
-    
-    return textParts.join(" ").trim();
-  } catch {
+
+    return textParts.join("\n").trim();
+  } catch (e) {
+    console.error("DOCX extraction error:", e);
     return "[Failed to extract text from DOCX. Please paste content manually.]";
   }
 }
 
+// ─── ZIP File Extraction Helper ────────────────────────────────
+// Minimal ZIP extraction to find a specific file within a ZIP archive
+async function extractFileFromZip(zipBytes: Uint8Array, targetPath: string): Promise<string | null> {
+  try {
+    // Find local file headers (PK\x03\x04)
+    const targetLower = targetPath.toLowerCase();
+
+    for (let i = 0; i < zipBytes.length - 30; i++) {
+      // Look for local file header signature
+      if (zipBytes[i] !== 0x50 || zipBytes[i + 1] !== 0x4B ||
+          zipBytes[i + 2] !== 0x03 || zipBytes[i + 3] !== 0x04) continue;
+
+      const compressionMethod = zipBytes[i + 8] | (zipBytes[i + 9] << 8);
+      const compressedSize = zipBytes[i + 18] | (zipBytes[i + 19] << 8) |
+        (zipBytes[i + 20] << 16) | (zipBytes[i + 21] << 24);
+      const uncompressedSize = zipBytes[i + 22] | (zipBytes[i + 23] << 8) |
+        (zipBytes[i + 24] << 16) | (zipBytes[i + 25] << 24);
+      const fileNameLength = zipBytes[i + 26] | (zipBytes[i + 27] << 8);
+      const extraLength = zipBytes[i + 28] | (zipBytes[i + 29] << 8);
+
+      const fileNameBytes = zipBytes.slice(i + 30, i + 30 + fileNameLength);
+      const fileName = new TextDecoder().decode(fileNameBytes).toLowerCase();
+
+      if (fileName !== targetLower) continue;
+
+      const dataStart = i + 30 + fileNameLength + extraLength;
+      const compressedData = zipBytes.slice(dataStart, dataStart + compressedSize);
+
+      if (compressionMethod === 0) {
+        // Stored (no compression)
+        return new TextDecoder("utf-8").decode(compressedData);
+      } else if (compressionMethod === 8) {
+        // Deflate
+        try {
+          const ds = new DecompressionStream("raw");
+          const writer = ds.writable.getWriter();
+          writer.write(compressedData);
+          writer.close();
+          const reader = ds.readable.getReader();
+          const chunks: Uint8Array[] = [];
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) chunks.push(value);
+          }
+          const total = chunks.reduce((a, c) => a + c.length, 0);
+          const result = new Uint8Array(total);
+          let offset = 0;
+          for (const chunk of chunks) {
+            result.set(chunk, offset);
+            offset += chunk.length;
+          }
+          return new TextDecoder("utf-8").decode(result);
+        } catch (e) {
+          console.error("Deflate decompression failed:", e);
+          return null;
+        }
+      }
+    }
+    return null;
+  } catch (e) {
+    console.error("ZIP extraction error:", e);
+    return null;
+  }
+}
+
+// ─── Spreadsheet Extraction ───────────────────────────────────
 async function extractTextFromSpreadsheet(blob: Blob): Promise<string> {
   try {
-    const arrayBuffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+
+    // Try to extract shared strings from XLSX (ZIP-based)
+    const sharedStrings = await extractFileFromZip(bytes, "xl/sharedstrings.xml");
+    if (sharedStrings) {
+      const textParts: string[] = [];
+      const regex = /<t[^>]*>([^<]*)<\/t>/g;
+      let match;
+      while ((match = regex.exec(sharedStrings)) !== null) {
+        if (match[1].trim()) textParts.push(match[1].trim());
+      }
+      if (textParts.length > 0) return textParts.join("\t").trim();
+    }
+
+    // Fallback: raw decode
     const decoder = new TextDecoder("utf-8", { fatal: false });
-    const raw = decoder.decode(new Uint8Array(arrayBuffer));
-    
-    // For XLSX, extract from shared strings and sheet data
+    const raw = decoder.decode(bytes);
     const textParts: string[] = [];
-    
-    // Extract shared strings
     const siRegex = /<t[^>]*>([^<]*)<\/t>/g;
     let match;
     while ((match = siRegex.exec(raw)) !== null) {
       if (match[1].trim()) textParts.push(match[1].trim());
     }
-    
     if (textParts.length === 0) {
       return "[Spreadsheet extraction found no text. Please paste content manually.]";
     }
-    
     return textParts.join("\t").trim();
   } catch {
     return "[Failed to extract spreadsheet data. Please paste content manually.]";
   }
 }
 
+// ─── QTI Extraction ───────────────────────────────────────────
 async function extractTextFromQti(blob: Blob): Promise<string> {
   try {
-    const arrayBuffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+
+    // Try extracting XML files from the ZIP
+    const candidates = ["imsmanifest.xml"];
+    let allText = "";
+
+    // Scan all files in the ZIP for QTI content
     const decoder = new TextDecoder("utf-8", { fatal: false });
-    const raw = decoder.decode(new Uint8Array(arrayBuffer));
-    
-    // Extract question text and answer content from QTI XML
+    const raw = decoder.decode(bytes);
+
     const textParts: string[] = [];
-    
-    // Look for mattext content (QTI 1.2)
-    const mattextRegex = /<mattext[^>]*>([^<]*)<\/mattext>/gi;
+    // QTI 1.2 mattext
+    const mattextRegex = /<mattext[^>]*>([\s\S]*?)<\/mattext>/gi;
     let match;
     while ((match = mattextRegex.exec(raw)) !== null) {
-      if (match[1].trim()) textParts.push(match[1].trim());
+      const cleaned = match[1].replace(/<[^>]*>/g, "").trim();
+      if (cleaned) textParts.push(cleaned);
     }
-    
-    // Look for itemBody content (QTI 2.1)
-    const bodyRegex = /<(?:prompt|simpleChoice|p)[^>]*>([^<]*)<\/(?:prompt|simpleChoice|p)>/gi;
+    // QTI 2.1
+    const bodyRegex = /<(?:prompt|simpleChoice|p)[^>]*>([\s\S]*?)<\/(?:prompt|simpleChoice|p)>/gi;
     while ((match = bodyRegex.exec(raw)) !== null) {
-      if (match[1].trim()) textParts.push(match[1].trim());
+      const cleaned = match[1].replace(/<[^>]*>/g, "").trim();
+      if (cleaned) textParts.push(cleaned);
     }
-    
+
     if (textParts.length === 0) {
       return "[QTI extraction found no questions. Please verify the file format.]";
     }
-    
     return textParts.join("\n").trim();
   } catch {
     return "[Failed to parse QTI content. Please paste content manually.]";
