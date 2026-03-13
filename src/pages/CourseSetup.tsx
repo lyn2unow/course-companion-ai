@@ -11,14 +11,18 @@ import CourseBasicInfo, { type BasicInfoData } from "@/components/course-setup/C
 import CoursePhilosophy, { type PhilosophyData } from "@/components/course-setup/CoursePhilosophy";
 import CourseMaterials, { type PendingFile } from "@/components/course-setup/CourseMaterials";
 import CourseReview from "@/components/course-setup/CourseReview";
+import CourseObjectives from "@/components/course-setup/CourseObjectives";
 
-const STEP_LABELS = ["Basic Info", "Philosophy", "Materials", "Review"];
+const STEP_LABELS = ["Basic Info", "Philosophy", "Materials", "Review", "Objectives"];
 
 const CourseSetup = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [objectives, setObjectives] = useState<string[]>([]);
+  const [courseIdForExtraction, setCourseIdForExtraction] = useState<string | null>(null);
 
   const [basicInfo, setBasicInfo] = useState<BasicInfoData>({
     name: "",
@@ -39,7 +43,6 @@ const CourseSetup = () => {
     setIsSubmitting(true);
 
     try {
-      // 1. Insert course
       const { data: course, error: courseError } = await supabase
         .from("courses")
         .insert({
@@ -56,7 +59,6 @@ const CourseSetup = () => {
 
       if (courseError) throw courseError;
 
-      // 2. Upload files and insert metadata
       for (const pf of files) {
         const storagePath = `${user.id}/${course.id}/${Date.now()}_${pf.file.name}`;
         const { error: uploadError } = await supabase.storage
@@ -65,7 +67,7 @@ const CourseSetup = () => {
 
         if (uploadError) {
           console.error("File upload error:", uploadError);
-          continue; // non-blocking — still create the course
+          continue;
         }
 
         await supabase.from("course_materials").insert({
@@ -77,14 +79,35 @@ const CourseSetup = () => {
           material_type: pf.materialType,
           storage_path: storagePath,
         });
+
+        // Trigger text extraction for this file
+        supabase.functions.invoke("parse-content", {
+          body: { storagePath, courseId: course.id },
+        }).catch(console.error);
       }
 
-      toast({
-        title: "Course created!",
-        description: `"${basicInfo.name}" is ready. You can now add modules and content.`,
-      });
+      setCourseIdForExtraction(course.id);
+      setStep(5);
 
-      navigate("/dashboard");
+      // Wait briefly for parse-content to process, then extract objectives
+      const hasSyllabus = files.some((f) => f.materialType === "syllabus");
+      if (hasSyllabus) {
+        setIsExtracting(true);
+        // Give parse-content a moment to process the uploaded file
+        await new Promise((r) => setTimeout(r, 3000));
+        try {
+          const { data, error } = await supabase.functions.invoke("extract-objectives", {
+            body: { courseId: course.id, courseName: basicInfo.name },
+          });
+          if (!error && data?.objectives?.length > 0) {
+            setObjectives(data.objectives);
+          }
+        } catch (err) {
+          console.error("Objective extraction failed:", err);
+        } finally {
+          setIsExtracting(false);
+        }
+      }
     } catch (err: any) {
       console.error(err);
       toast({
@@ -97,48 +120,68 @@ const CourseSetup = () => {
     }
   };
 
+  const handleFinish = async (finalObjectives: string[]) => {
+    if (!courseIdForExtraction) {
+      navigate("/dashboard");
+      return;
+    }
+    toast({
+      title: "Course created!",
+      description: `"${basicInfo.name}" is ready. Add your first module to apply objectives.`,
+    });
+    navigate(`/courses/${courseIdForExtraction}`);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <PageContainer className="max-w-2xl">
         <PageTransition>
-        <main id="main-content">
-        <h1 className="text-2xl font-bold mb-2">Create New Course</h1>
-        <p className="text-muted-foreground mb-8">Set up your course in a few quick steps.</p>
+          <main id="main-content">
+            <h1 className="text-2xl font-bold mb-2">Create New Course</h1>
+            <p className="text-muted-foreground mb-8">Set up your course in a few quick steps.</p>
 
-        <StepIndicator currentStep={step} totalSteps={4} labels={STEP_LABELS} />
+            <StepIndicator currentStep={step} totalSteps={5} labels={STEP_LABELS} />
 
-        {step === 1 && (
-          <CourseBasicInfo
-            data={basicInfo}
-            onNext={(d) => { setBasicInfo(d); setStep(2); }}
-          />
-        )}
-        {step === 2 && (
-          <CoursePhilosophy
-            data={philosophy}
-            onNext={(d) => { setPhilosophy(d); setStep(3); }}
-            onBack={() => setStep(1)}
-          />
-        )}
-        {step === 3 && (
-          <CourseMaterials
-            files={files}
-            onNext={(f) => { setFiles(f); setStep(4); }}
-            onBack={() => setStep(2)}
-          />
-        )}
-        {step === 4 && (
-          <CourseReview
-            basicInfo={basicInfo}
-            philosophy={philosophy}
-            files={files}
-            onBack={() => setStep(3)}
-            onSubmit={handleSubmit}
-            isSubmitting={isSubmitting}
-          />
-        )}
-      </main>
+            {step === 1 && (
+              <CourseBasicInfo
+                data={basicInfo}
+                onNext={(d) => { setBasicInfo(d); setStep(2); }}
+              />
+            )}
+            {step === 2 && (
+              <CoursePhilosophy
+                data={philosophy}
+                onNext={(d) => { setPhilosophy(d); setStep(3); }}
+                onBack={() => setStep(1)}
+              />
+            )}
+            {step === 3 && (
+              <CourseMaterials
+                files={files}
+                onNext={(f) => { setFiles(f); setStep(4); }}
+                onBack={() => setStep(2)}
+              />
+            )}
+            {step === 4 && (
+              <CourseReview
+                basicInfo={basicInfo}
+                philosophy={philosophy}
+                files={files}
+                onBack={() => setStep(3)}
+                onSubmit={handleSubmit}
+                isSubmitting={isSubmitting}
+              />
+            )}
+            {step === 5 && (
+              <CourseObjectives
+                objectives={objectives}
+                isExtracting={isExtracting}
+                onNext={handleFinish}
+                onBack={() => setStep(3)}
+              />
+            )}
+          </main>
         </PageTransition>
       </PageContainer>
     </div>
