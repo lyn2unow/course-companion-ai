@@ -87,6 +87,7 @@ const CourseDetail = () => {
         title,
         description: description || null,
         sort_order: maxOrder + 1,
+        learning_objectives: [],
       });
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["modules", id] });
