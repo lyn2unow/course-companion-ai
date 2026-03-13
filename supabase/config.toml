@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.generate-kudos]
 verify_jwt = false
+
+[functions.extract-objectives]
+verify_jwt = false
