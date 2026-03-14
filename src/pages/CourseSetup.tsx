@@ -84,6 +84,20 @@ const CourseSetup = () => {
         await supabase.functions.invoke("parse-content", {
           body: { storagePath, courseId: course.id },
         });
+
+        // Diagnostic — remove after debugging
+        const { data: matCheck } = await supabase
+          .from("course_materials")
+          .select("file_name, extracted_text")
+          .eq("course_id", course.id)
+          .eq("material_type", "syllabus")
+          .single();
+        toast({
+          title: `parse-content result for ${matCheck?.file_name}`,
+          description: matCheck?.extracted_text
+            ? `extracted_text: ${matCheck.extracted_text.slice(0, 100)}`
+            : "extracted_text is NULL",
+        });
       }
 
       setCourseIdForExtraction(course.id);
