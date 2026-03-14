@@ -15,7 +15,7 @@ import QuizList from "@/components/quizzes/QuizList";
 import DiscussionsTab from "@/components/discussions/DiscussionsTab";
 import CreateQuizDialog from "@/components/quizzes/CreateQuizDialog";
 import EditSourceHierarchyDialog from "@/components/course-setup/EditSourceHierarchyDialog";
-import { Plus, BookOpen, FolderOpen, AlertCircle, FileQuestion, Pencil, MessageSquare } from "lucide-react";
+import { Plus, BookOpen, FolderOpen, AlertCircle, FileQuestion, Pencil, MessageSquare, FlaskConical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import {
@@ -51,6 +51,43 @@ const CourseDetail = () => {
   const [showCreateQuiz, setShowCreateQuiz] = useState(false);
   const [creatingQuiz, setCreatingQuiz] = useState(false);
   const [showEditHierarchy, setShowEditHierarchy] = useState(false);
+  const [extractingObjectives, setExtractingObjectives] = useState(false);
+
+  // Query materials with extracted_text for diagnostic button
+  const { data: materialsWithText = [] } = useQuery({
+    queryKey: ["materials-with-text", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("course_materials")
+        .select("id, file_name, extracted_text")
+        .eq("course_id", id!)
+        .not("extracted_text", "is", null);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  const handleExtractObjectives = async () => {
+    if (!id || !course) return;
+    setExtractingObjectives(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("extract-objectives", {
+        body: { courseId: id, courseName: course.name },
+      });
+      if (error) {
+        toast({ title: "Extraction error", description: JSON.stringify(error), variant: "destructive" });
+      } else if (!data?.objectives?.length) {
+        toast({ title: "No objectives returned", description: `Data: ${JSON.stringify(data)}`, variant: "destructive" });
+      } else {
+        toast({ title: `Extracted ${data.objectives.length} objectives`, description: data.objectives[0] });
+      }
+    } catch (err: any) {
+      toast({ title: "Extraction exception", description: err.message ?? String(err), variant: "destructive" });
+    } finally {
+      setExtractingObjectives(false);
+    }
+  };
 
   const { data: course, isLoading, isError } = useQuery({
     queryKey: ["course", id],
@@ -304,10 +341,26 @@ const CourseDetail = () => {
 
                   <TabsContent value="materials">
                     <div className="mb-4">
-                      <h2 className="text-lg font-semibold">Course Materials</h2>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Upload source materials so the AI can generate content based on your actual course content.
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-lg font-semibold">Course Materials</h2>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Upload source materials so the AI can generate content based on your actual course content.
+                          </p>
+                        </div>
+                        {materialsWithText.length > 0 && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleExtractObjectives}
+                            disabled={extractingObjectives}
+                            className="border-dashed border-yellow-500 text-yellow-600"
+                          >
+                            <FlaskConical className="h-4 w-4 mr-1" />
+                            {extractingObjectives ? "Extracting…" : `Extract Objectives (${materialsWithText.length} files)`}
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <MaterialsManager courseId={id!} sourceHierarchy={sourceHierarchy} />
                   </TabsContent>
