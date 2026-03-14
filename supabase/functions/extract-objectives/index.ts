@@ -50,6 +50,13 @@ serve(async (req) => {
 
     const extractedText = syllabusData.extracted_text as string;
 
+    // Skip if extracted_text is a failure placeholder
+    if (extractedText.trimStart().startsWith("[")) {
+      return new Response(JSON.stringify({ objectives: [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
