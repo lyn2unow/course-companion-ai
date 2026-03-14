@@ -73,6 +73,9 @@ serve(async (req) => {
       }
     }
 
+    // Strip null bytes (PostgreSQL text columns cannot store \u0000)
+    extractedText = extractedText.replace(/\x00/g, "");
+
     // Truncate to avoid huge DB entries (max ~100k chars)
     if (extractedText.length > 100000) {
       extractedText = extractedText.substring(0, 100000) + "\n\n[Content truncated]";
