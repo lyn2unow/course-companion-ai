@@ -52,7 +52,7 @@ const CourseObjectives = ({ objectives: initial, isExtracting, onNext, onBack }:
           </p>
         ) : (
           <p className="text-sm text-muted-foreground">
-            No syllabus uploaded. Add your learning objectives manually.
+            Could not extract objectives automatically. Add them manually below.
           </p>
         )}
       </div>
