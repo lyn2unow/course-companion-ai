@@ -33,20 +33,14 @@ serve(async (req) => {
     courseId = cId;
     if (!courseId) throw new Error("Missing courseId");
 
-    // Retry up to 3 times waiting for extracted_text to become available
-    let syllabusData = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
-      const { data } = await supabase
-        .from("course_materials")
-        .select("extracted_text, file_name")
-        .eq("course_id", courseId)
-        .eq("material_type", "syllabus")
-        .not("extracted_text", "is", null)
-        .limit(1)
-        .maybeSingle();
-      if (data?.extracted_text) { syllabusData = data; break; }
-    }
+    const { data: syllabusData } = await supabase
+      .from("course_materials")
+      .select("extracted_text, file_name")
+      .eq("course_id", courseId)
+      .eq("material_type", "syllabus")
+      .not("extracted_text", "is", null)
+      .limit(1)
+      .maybeSingle();
 
     if (!syllabusData) {
       return new Response(JSON.stringify({ objectives: [] }), {

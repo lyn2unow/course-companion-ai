@@ -80,10 +80,10 @@ const CourseSetup = () => {
           storage_path: storagePath,
         });
 
-        // Trigger text extraction for this file
-        supabase.functions.invoke("parse-content", {
+        // Await text extraction so extracted_text is ready before objective extraction
+        await supabase.functions.invoke("parse-content", {
           body: { storagePath, courseId: course.id },
-        }).catch(console.error);
+        });
       }
 
       setCourseIdForExtraction(course.id);
