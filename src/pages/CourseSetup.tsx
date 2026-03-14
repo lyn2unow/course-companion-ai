@@ -108,34 +108,14 @@ const CourseSetup = () => {
       if (hasSyllabus) {
         setIsExtracting(true);
         try {
-          const { data, error } = await supabase.functions.invoke("extract-objectives", {
+          const { data } = await supabase.functions.invoke("extract-objectives", {
             body: { courseId: course.id, courseName: basicInfo.name },
           });
-          if (error) {
-            toast({
-              title: "Extraction error",
-              description: JSON.stringify(error),
-              variant: "destructive",
-            });
-          } else if (!data?.objectives?.length) {
-            toast({
-              title: "No objectives returned",
-              description: `Data received: ${JSON.stringify(data)}`,
-              variant: "destructive",
-            });
-          } else {
-            toast({
-              title: `Extracted ${data.objectives.length} objectives`,
-              description: data.objectives[0],
-            });
+          if (data?.objectives?.length) {
             setObjectives(data.objectives);
           }
-        } catch (err: any) {
-          toast({
-            title: "Extraction exception",
-            description: err.message ?? String(err),
-            variant: "destructive",
-          });
+        } catch {
+          // Silent failure — objectives step will show empty state
         } finally {
           setIsExtracting(false);
         }
