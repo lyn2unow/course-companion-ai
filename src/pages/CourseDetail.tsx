@@ -311,18 +311,6 @@ const CourseDetail = () => {
                             Upload source materials so the AI can generate content based on your actual course content.
                           </p>
                         </div>
-                        {materialsWithText.length > 0 && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleExtractObjectives}
-                            disabled={extractingObjectives}
-                            className="border-dashed border-yellow-500 text-yellow-600"
-                          >
-                            <FlaskConical className="h-4 w-4 mr-1" />
-                            {extractingObjectives ? "Extracting…" : `Extract Objectives (${materialsWithText.length} files)`}
-                          </Button>
-                        )}
                       </div>
                     </div>
                     <MaterialsManager courseId={id!} sourceHierarchy={sourceHierarchy} />
