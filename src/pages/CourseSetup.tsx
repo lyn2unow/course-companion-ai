@@ -93,8 +93,6 @@ const CourseSetup = () => {
       const hasSyllabus = files.some((f) => f.materialType === "syllabus");
       if (hasSyllabus) {
         setIsExtracting(true);
-        // Give parse-content a moment to process the uploaded file
-        await new Promise((r) => setTimeout(r, 3000));
         try {
           const { data, error } = await supabase.functions.invoke("extract-objectives", {
             body: { courseId: course.id, courseName: basicInfo.name },
