@@ -141,25 +141,35 @@ async function extractTextFromPdf(blob: Blob): Promise<string> {
         const streamBytes = new Uint8Array(
           match[1].split("").map(c => c.charCodeAt(0))
         );
-        // Try to decompress
-        const ds = new DecompressionStream("deflate");
-        const writer = ds.writable.getWriter();
-        writer.write(streamBytes);
-        writer.close();
-        const reader = ds.readable.getReader();
-        const chunks: Uint8Array[] = [];
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          if (value) chunks.push(value);
-        }
-        const decompressed = new Uint8Array(chunks.reduce((a, c) => a + c.length, 0));
-        let offset = 0;
-        for (const chunk of chunks) {
-          decompressed.set(chunk, offset);
-          offset += chunk.length;
-        }
-        const decompressedText = new TextDecoder("latin1").decode(decompressed);
+        // Try to decompress — wrap in promise to catch async stream errors
+        const decompressedText = await new Promise<string>((resolve, reject) => {
+          try {
+            const ds = new DecompressionStream("deflate");
+            const writer = ds.writable.getWriter();
+            writer.write(streamBytes).catch(() => {});
+            writer.close().catch(() => {});
+            const reader = ds.readable.getReader();
+            const chunks: Uint8Array[] = [];
+            const pump = (): Promise<void> => reader.read().then(({ done, value }) => {
+              if (done) {
+                const total = chunks.reduce((a, c) => a + c.length, 0);
+                const result = new Uint8Array(total);
+                let offset = 0;
+                for (const chunk of chunks) {
+                  result.set(chunk, offset);
+                  offset += chunk.length;
+                }
+                resolve(new TextDecoder("latin1").decode(result));
+                return;
+              }
+              if (value) chunks.push(value);
+              return pump();
+            }).catch(reject);
+            pump().catch(reject);
+          } catch (e) {
+            reject(e);
+          }
+        });
 
         // Extract text operators from decompressed stream
         const innerTj = /\(([^)]*)\)\s*Tj/g;
@@ -178,7 +188,7 @@ async function extractTextFromPdf(blob: Blob): Promise<string> {
           }
         }
       } catch {
-        // Decompression failed, skip this stream
+        // Decompression failed for this stream, skip it
       }
     }
   }
