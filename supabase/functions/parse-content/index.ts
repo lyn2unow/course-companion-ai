@@ -73,8 +73,18 @@ serve(async (req) => {
       }
     }
 
-    // Strip null bytes (PostgreSQL text columns cannot store \u0000)
-    extractedText = extractedText.replace(/\x00/g, "");
+    // Strip null bytes and control characters (PostgreSQL text columns cannot store \u0000)
+    extractedText = extractedText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+
+    // Validate extraction quality — detect garbled binary output
+    if (extractedText.length > 0) {
+      const printableCount = (extractedText.match(/[\x20-\x7E\t\n\r\u00A0-\uFFFF]/g) || []).length;
+      const ratio = printableCount / extractedText.length;
+      if (ratio < 0.6) {
+        console.log(`[parse-content] Binary output detected (${(ratio * 100).toFixed(1)}% printable), replacing with placeholder`);
+        extractedText = "[SCANNED PDF or binary output — text extraction not possible for this file. Please paste the syllabus text manually using the Paste Content button.]";
+      }
+    }
 
     // Truncate to avoid huge DB entries (max ~100k chars)
     if (extractedText.length > 100000) {
