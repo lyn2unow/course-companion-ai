@@ -33,23 +33,28 @@ serve(async (req) => {
     courseId = cId;
     if (!courseId) throw new Error("Missing courseId");
 
-    // Find syllabus with extracted text
-    const { data: syllabus, error: syllabusErr } = await supabase
-      .from("course_materials")
-      .select("extracted_text, file_name")
-      .eq("course_id", courseId)
-      .eq("material_type", "syllabus")
-      .not("extracted_text", "is", null)
-      .limit(1)
-      .single();
+    // Retry up to 3 times waiting for extracted_text to become available
+    let syllabusData = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+      const { data } = await supabase
+        .from("course_materials")
+        .select("extracted_text, file_name")
+        .eq("course_id", courseId)
+        .eq("material_type", "syllabus")
+        .not("extracted_text", "is", null)
+        .limit(1)
+        .maybeSingle();
+      if (data?.extracted_text) { syllabusData = data; break; }
+    }
 
-    if (syllabusErr || !syllabus?.extracted_text) {
+    if (!syllabusData) {
       return new Response(JSON.stringify({ objectives: [] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const extractedText = syllabus.extracted_text as string;
+    const extractedText = syllabusData.extracted_text as string;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
