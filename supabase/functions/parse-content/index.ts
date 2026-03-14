@@ -51,8 +51,13 @@ serve(async (req) => {
       extractedText = await fileData.text();
       console.log(`[parse-content] TXT extracted, length: ${extractedText.length}`);
     } else if (fileName.endsWith(".pdf")) {
-      extractedText = await extractTextFromPdf(fileData);
-      console.log(`[parse-content] PDF extracted, length: ${extractedText.length}`);
+      try {
+        extractedText = await extractTextFromPdf(fileData);
+        console.log(`[parse-content] PDF extracted, length: ${extractedText.length}`);
+      } catch (pdfErr: any) {
+        console.error("[parse-content] PDF extraction error:", pdfErr);
+        extractedText = `[PDF extraction failed: ${pdfErr?.message ?? String(pdfErr)}]`;
+      }
     } else if (fileName.endsWith(".docx") || fileName.endsWith(".doc")) {
       extractedText = await extractTextFromDocx(fileData);
       console.log(`[parse-content] DOCX extracted, length: ${extractedText.length}`);
