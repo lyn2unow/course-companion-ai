@@ -109,6 +109,12 @@ const CourseMaterials = ({ files: initialFiles, onNext, onBack }: Props) => {
         </div>
       )}
 
+      {files.some((f) => f.materialType === "syllabus") && (
+        <p className="text-xs text-muted-foreground italic">
+          For scanned PDFs, use a text-based PDF or paste your syllabus content directly in the next step.
+        </p>
+      )}
+
       {files.length === 0 && (
         <div className="rounded-md border border-dashed border-muted-foreground/30 p-8 text-center">
           <FileText className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
