@@ -51,43 +51,6 @@ const CourseDetail = () => {
   const [showCreateQuiz, setShowCreateQuiz] = useState(false);
   const [creatingQuiz, setCreatingQuiz] = useState(false);
   const [showEditHierarchy, setShowEditHierarchy] = useState(false);
-  const [extractingObjectives, setExtractingObjectives] = useState(false);
-
-  // Query materials with extracted_text for diagnostic button
-  const { data: materialsWithText = [] } = useQuery({
-    queryKey: ["materials-with-text", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("course_materials")
-        .select("id, file_name, extracted_text")
-        .eq("course_id", id!)
-        .not("extracted_text", "is", null);
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!id,
-  });
-
-  const handleExtractObjectives = async () => {
-    if (!id || !course) return;
-    setExtractingObjectives(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("extract-objectives", {
-        body: { courseId: id, courseName: course.name },
-      });
-      if (error) {
-        toast({ title: "Extraction error", description: JSON.stringify(error), variant: "destructive" });
-      } else if (!data?.objectives?.length) {
-        toast({ title: "No objectives returned", description: `Data: ${JSON.stringify(data)}`, variant: "destructive" });
-      } else {
-        toast({ title: `Extracted ${data.objectives.length} objectives`, description: data.objectives[0] });
-      }
-    } catch (err: any) {
-      toast({ title: "Extraction exception", description: err.message ?? String(err), variant: "destructive" });
-    } finally {
-      setExtractingObjectives(false);
-    }
-  };
 
   const { data: course, isLoading, isError } = useQuery({
     queryKey: ["course", id],
